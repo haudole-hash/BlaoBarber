@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * { box-sizing: border-box; margin: 0; }
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background: #f8f9fa;
+        color: #191c1d;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        user-select: none;
+      }
+      h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+      p { font-size: 14px; color: #444748; }
+      .spin {
+        width: 36px;
+        height: 36px;
+        border: 3px solid #e1e3e4;
+        border-top-color: #000;
+        border-radius: 50%;
+        animation: r 0.8s linear infinite;
+        margin-bottom: 20px;
+      }
+      @keyframes r { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div class="spin"></div>
+    <h1>B'Lao</h1>
+    <p>Dang mo ung dung...</p>
+  </body>
+</html>

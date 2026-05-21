@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Services Management | B'Lao Barbershop</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Hanken Grotesk', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .sidebar-active {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#ffffff",
+                        "primary-fixed": "#e5e2e1",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#00429c",
+                        "surface-container-high": "#e7e8e9",
+                        "outline-variant": "#c4c7c7",
+                        "surface-tint": "#5f5e5e",
+                        "tertiary-fixed-dim": "#b0c6ff",
+                        "surface-variant": "#e1e3e4",
+                        "tertiary-fixed": "#d9e2ff",
+                        "tertiary": "#000000",
+                        "surface-container-lowest": "#ffffff",
+                        "outline": "#747878",
+                        "on-primary-container": "#858383",
+                        "on-primary": "#ffffff",
+                        "primary-fixed-dim": "#c8c6c5",
+                        "secondary-container": "#d93630",
+                        "on-secondary-fixed-variant": "#93000b",
+                        "secondary-fixed": "#ffdad6",
+                        "on-secondary-container": "#fffbff",
+                        "surface-dim": "#d9dadb",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-low": "#f3f4f5",
+                        "inverse-on-surface": "#f0f1f2",
+                        "on-tertiary-container": "#5781de",
+                        "secondary": "#b51a1b",
+                        "on-error": "#ffffff",
+                        "on-tertiary-fixed": "#001945",
+                        "surface-container": "#edeeef",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed": "#1c1b1b",
+                        "background": "#f8f9fa",
+                        "surface-container-highest": "#e1e3e4",
+                        "on-primary-fixed-variant": "#474646",
+                        "surface-bright": "#f8f9fa",
+                        "inverse-surface": "#2e3132",
+                        "on-secondary-fixed": "#410002",
+                        "on-surface-variant": "#444748",
+                        "on-background": "#191c1d",
+                        "primary": "#000000",
+                        "error-container": "#ffdad6",
+                        "inverse-primary": "#c8c6c5",
+                        "on-surface": "#191c1d",
+                        "surface": "#f8f9fa",
+                        "tertiary-container": "#001945",
+                        "primary-container": "#1c1b1b",
+                        "secondary-fixed-dim": "#ffb4ab"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "margin-desktop": "40px",
+                        "base": "4px",
+                        "column-gap": "24px",
+                        "gutter": "24px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["EB Garamond"],
+                        "label-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-md": ["EB Garamond"],
+                        "headline-xl": ["EB Garamond"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.03em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "500"}],
+                        "headline-xl": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface">
+<div class="flex min-h-screen">
+<!-- SideNavBar Component -->
+<aside class="flex flex-col h-screen py-8 border-r border-outline-variant dark:border-outline bg-surface dark:bg-surface-dim docked left-0 h-full w-64 shrink-0">
+<div class="px-6 mb-10 flex items-center gap-3">
+<img alt="B'Lao Barbershop Logo" class="w-10 h-10 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtQDa3KneHPRwimLEFRwaswpMYoqKVrEZXr7iJt8fVqDfh-o9ye8WtjkI1uMRx6Y6Lv7HMmfcdP8-SfQxFQSfRqfftRq3pAlpn0dqoLLpYKZyD2aYTR834jskFzZ-f_eEpi66YHEioWxduc7m14qmt_2_PO_c9TV76qe-4RdG11ICa9P794nF_A0HP7oHabrCwmCPBr-Pt_pswt6QdQIgTdu_6LAwELq2I5c3zB0LIOI5wCqbs_X6z1Al9tAJuafeftehpajRcZ9k-"/>
+<div>
+<h1 class="text-headline-md font-headline-lg font-bold text-primary dark:text-primary-fixed">B'Lao</h1>
+<p class="text-label-sm font-label-sm text-on-surface-variant">Master Management</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center px-6 py-3 text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-all" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="dashboard">dashboard</span>
+<span class="font-label-sm text-label-sm">Dashboard</span>
+</a>
+<a class="flex items-center px-6 py-3 bg-primary-container dark:bg-primary-container text-on-primary-container dark:text-on-primary-fixed-variant font-bold border-r-4 border-primary dark:border-primary-fixed translate-x-1 transition-transform" href="#">
+<span class="material-symbols-outlined mr-3 sidebar-active" data-icon="content_cut" style="font-variation-settings: 'FILL' 1;">content_cut</span>
+<span class="font-label-sm text-label-sm">Services</span>
+</a>
+<a class="flex items-center px-6 py-3 text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-all" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="receipt_long">receipt_long</span>
+<span class="font-label-sm text-label-sm">Orders</span>
+</a>
+</nav>
+<div class="px-6 mt-auto space-y-4">
+<button class="w-full bg-primary text-on-primary font-label-md text-label-md py-3 px-4 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity active:scale-95">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                    New Booking
+                </button>
+<div class="pt-6 border-t border-outline-variant">
+<a class="flex items-center py-2 text-on-surface-variant font-label-sm text-label-sm hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="help">help</span>
+                        Support
+                    </a>
+<a class="flex items-center py-2 text-on-surface-variant font-label-sm text-label-sm hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="logout">logout</span>
+                        Logout
+                    </a>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col min-w-0">
+<!-- TopNavBar Component -->
+<header class="flex justify-between items-center px-margin-desktop w-full h-16 bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-4">
+<h2 class="text-headline-md font-headline-md font-semibold text-primary dark:text-primary-fixed">Services</h2>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group hidden lg:block">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-outline material-symbols-outlined" data-icon="search">search</span>
+<input class="pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-full text-body-md focus:outline-none focus:ring-1 focus:ring-primary w-64 transition-all" placeholder="Search services..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden border border-outline-variant">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="A professional headshot of a groomed man with a neat beard and classic hairstyle, looking directly at the camera. The background is a blurred high-end barbershop interior with warm, ambient lighting. The overall mood is sophisticated and expert." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB57YtfBPd3SneimW5iUeae6fgabKaJwFKe3Vl6ApHkbJXZ0DV1ls31CUNk_JZpB7uABB907nlhqf-DgCPPacfDT_-UY6ybSwH7NXHo8nxClUGzfLOI210AUhyLAVLukskoUcwgp4iaO-Xl61YtBRsskxjG7nkN6P7M1B8Pm366DwEBsAumTfEN0NqfypN1iE1d2wDdZp4jXTByd6IpNzrY350-iAN1bIvjEI5hh226U0kLo0QlaYrGUT9HtVi4HYd2YcwLY9aoBcm2"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Content Area -->
+<div class="p-margin-desktop space-y-8">
+<!-- Header Actions -->
+<div class="flex justify-between items-end">
+<div class="space-y-1">
+<h3 class="font-headline-lg text-headline-lg text-primary">Service Menu</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Manage your shop's offerings, pricing, and timing.</p>
+</div>
+<button class="bg-primary text-on-primary font-label-md text-label-md py-3 px-6 rounded-lg flex items-center gap-2 hover:opacity-90 shadow-sm transition-all active:scale-95" onclick="toggleModal()">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+                        Add New Service
+                    </button>
+</div>
+<!-- Stats/Bento Area -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter">
+<div class="bg-surface p-6 border border-outline-variant rounded-xl flex flex-col justify-between">
+<p class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Total Services</p>
+<div class="flex items-baseline gap-2 mt-2">
+<span class="text-headline-xl font-headline-xl">24</span>
+<span class="text-secondary font-label-sm">+2 this month</span>
+</div>
+</div>
+<div class="bg-surface p-6 border border-outline-variant rounded-xl flex flex-col justify-between">
+<p class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Average Price</p>
+<div class="flex items-baseline gap-2 mt-2">
+<span class="text-headline-xl font-headline-xl">$42</span>
+<span class="text-on-surface-variant font-label-sm">Standard Menu</span>
+</div>
+</div>
+<div class="bg-surface p-6 border border-outline-variant rounded-xl flex flex-col justify-between">
+<p class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider">Most Popular</p>
+<div class="mt-2">
+<span class="text-headline-md font-headline-md block">Executive Fade</span>
+<span class="text-on-surface-variant font-label-sm">45 mins</span>
+</div>
+</div>
+<div class="bg-primary p-6 rounded-xl flex flex-col justify-between text-on-primary">
+<p class="text-label-sm font-label-sm opacity-80 uppercase tracking-wider">Service Efficiency</p>
+<div class="flex items-baseline gap-2 mt-2">
+<span class="text-headline-xl font-headline-xl">94%</span>
+<span class="material-symbols-outlined text-tertiary-fixed" data-icon="trending_up">trending_up</span>
+</div>
+</div>
+</div>
+<!-- Table Component -->
+<div class="bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-6 py-4 font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">Service Name</th>
+<th class="px-6 py-4 font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">Category</th>
+<th class="px-6 py-4 font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">Duration</th>
+<th class="px-6 py-4 font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">Price</th>
+<th class="px-6 py-4 font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="content_cut">content_cut</span>
+</div>
+<span class="font-headline-md text-body-lg text-primary">Executive Haircut</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="bg-surface-container-high text-on-surface-variant px-3 py-1 rounded-full text-label-sm">Haircut</span>
+</td>
+<td class="px-6 py-5 text-body-md text-on-surface">45 mins</td>
+<td class="px-6 py-5 font-bold text-primary">$45.00</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors hover:bg-surface-container rounded" title="Edit">
+<span class="material-symbols-outlined text-[20px]" data-icon="edit">edit</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-secondary transition-colors hover:bg-secondary-fixed rounded" title="Delete">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="face">face</span>
+</div>
+<span class="font-headline-md text-body-lg text-primary">Hot Towel Shave</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="bg-surface-container-high text-on-surface-variant px-3 py-1 rounded-full text-label-sm">Shave</span>
+</td>
+<td class="px-6 py-5 text-body-md text-on-surface">30 mins</td>
+<td class="px-6 py-5 font-bold text-primary">$35.00</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors hover:bg-surface-container rounded">
+<span class="material-symbols-outlined text-[20px]" data-icon="edit">edit</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-secondary transition-colors hover:bg-secondary-fixed rounded">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="brush">brush</span>
+</div>
+<span class="font-headline-md text-body-lg text-primary">Beard Sculpting</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="bg-surface-container-high text-on-surface-variant px-3 py-1 rounded-full text-label-sm">Beard</span>
+</td>
+<td class="px-6 py-5 text-body-md text-on-surface">25 mins</td>
+<td class="px-6 py-5 font-bold text-primary">$25.00</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors hover:bg-surface-container rounded">
+<span class="material-symbols-outlined text-[20px]" data-icon="edit">edit</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-secondary transition-colors hover:bg-secondary-fixed rounded">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined" data-icon="star">star</span>
+</div>
+<span class="font-headline-md text-body-lg text-primary">The B'Lao Signature</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-label-sm">Premium</span>
+</td>
+<td class="px-6 py-5 text-body-md text-on-surface">90 mins</td>
+<td class="px-6 py-5 font-bold text-primary">$120.00</td>
+<td class="px-6 py-5 text-right space-x-2">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors hover:bg-surface-container rounded">
+<span class="material-symbols-outlined text-[20px]" data-icon="edit">edit</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-secondary transition-colors hover:bg-secondary-fixed rounded">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="px-6 py-4 border-t border-outline-variant flex items-center justify-between bg-surface-container-low">
+<span class="text-label-sm text-on-surface-variant">Showing 1 to 4 of 24 services</span>
+<div class="flex gap-2">
+<button class="p-2 border border-outline-variant rounded hover:bg-surface transition-colors disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="px-4 py-2 bg-primary text-on-primary rounded font-label-md text-label-md">1</button>
+<button class="px-4 py-2 hover:bg-surface-container rounded font-label-md text-label-md transition-colors">2</button>
+<button class="px-4 py-2 hover:bg-surface-container rounded font-label-md text-label-md transition-colors">3</button>
+<button class="p-2 border border-outline-variant rounded hover:bg-surface transition-colors">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Add Service Modal (Simplified for UI Demo) -->
+<div class="fixed inset-0 bg-primary/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" id="addServiceModal">
+<div class="bg-surface w-full max-w-lg rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-300">
+<div class="p-8 space-y-6">
+<div class="flex justify-between items-start">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-primary">New Service</h2>
+<p class="text-body-md text-on-surface-variant">Define details for the new grooming service.</p>
+</div>
+<button class="p-2 hover:bg-surface-container-high rounded-full transition-colors" onclick="toggleModal()">
+<span class="material-symbols-outlined" data-icon="close">close</span>
+</button>
+</div>
+<form class="space-y-4">
+<div class="space-y-1">
+<label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Service Name</label>
+<input class="w-full px-4 py-3 bg-surface-container-low border border-outline-variant rounded focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="e.g. Classic Buzz Cut" type="text"/>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-1">
+<label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Price ($)</label>
+<input class="w-full px-4 py-3 bg-surface-container-low border border-outline-variant rounded focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="0.00" type="number"/>
+</div>
+<div class="space-y-1">
+<label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Duration (Min)</label>
+<select class="w-full px-4 py-3 bg-surface-container-low border border-outline-variant rounded focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all">
+<option>15 mins</option>
+<option>30 mins</option>
+<option>45 mins</option>
+<option>60 mins</option>
+</select>
+</div>
+</div>
+<div class="space-y-1">
+<label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Category</label>
+<select class="w-full px-4 py-3 bg-surface-container-low border border-outline-variant rounded focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all">
+<option>Haircut</option>
+<option>Shave</option>
+<option>Beard</option>
+<option>Treatments</option>
+<option>Premium</option>
+</select>
+</div>
+<div class="pt-4 flex gap-4">
+<button class="flex-1 py-3 px-4 border border-outline text-primary font-label-md text-label-md rounded hover:bg-surface-container transition-colors" onclick="toggleModal()" type="button">Cancel</button>
+<button class="flex-1 py-3 px-4 bg-primary text-on-primary font-label-md text-label-md rounded hover:opacity-90 transition-all" type="button">Save Service</button>
+</div>
+</form>
+</div>
+</div>
+</div>
+<script>
+        function toggleModal() {
+            const modal = document.getElementById('addServiceModal');
+            modal.classList.toggle('hidden');
+        }
+
+        // Atmospheric micro-interaction for rows
+        document.querySelectorAll('tr').forEach(row => {
+            row.addEventListener('mouseenter', () => {
+                row.style.transform = 'translateX(4px)';
+                row.style.transition = 'transform 0.2s ease-out';
+            });
+            row.addEventListener('mouseleave', () => {
+                row.style.transform = 'translateX(0)';
+            });
+        });
+    </script>
+</body></html>

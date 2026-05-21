@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>B'Lao Barbershop | Orders Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700;800&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-nav-border {
+            border-right: 4px solid #000000;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c4c7c7;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #747878;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary": "#ffffff",
+                      "primary-fixed": "#e5e2e1",
+                      "error": "#ba1a1a",
+                      "on-tertiary-fixed-variant": "#00429c",
+                      "surface-container-high": "#e7e8e9",
+                      "outline-variant": "#c4c7c7",
+                      "surface-tint": "#5f5e5e",
+                      "tertiary-fixed-dim": "#b0c6ff",
+                      "surface-variant": "#e1e3e4",
+                      "tertiary-fixed": "#d9e2ff",
+                      "tertiary": "#000000",
+                      "surface-container-lowest": "#ffffff",
+                      "outline": "#747878",
+                      "on-primary-container": "#858383",
+                      "on-primary": "#ffffff",
+                      "primary-fixed-dim": "#c8c6c5",
+                      "secondary-container": "#d93630",
+                      "on-secondary-fixed-variant": "#93000b",
+                      "secondary-fixed": "#ffdad6",
+                      "on-secondary-container": "#fffbff",
+                      "surface-dim": "#d9dadb",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-low": "#f3f4f5",
+                      "inverse-on-surface": "#f0f1f2",
+                      "on-tertiary-container": "#5781de",
+                      "secondary": "#b51a1b",
+                      "on-error": "#ffffff",
+                      "on-tertiary-fixed": "#001945",
+                      "surface-container": "#edeeef",
+                      "on-error-container": "#93000a",
+                      "on-primary-fixed": "#1c1b1b",
+                      "background": "#f8f9fa",
+                      "surface-container-highest": "#e1e3e4",
+                      "on-primary-fixed-variant": "#474646",
+                      "surface-bright": "#f8f9fa",
+                      "inverse-surface": "#2e3132",
+                      "on-secondary-fixed": "#410002",
+                      "on-surface-variant": "#444748",
+                      "on-background": "#191c1d",
+                      "primary": "#000000",
+                      "error-container": "#ffdad6",
+                      "inverse-primary": "#c8c6c5",
+                      "on-surface": "#191c1d",
+                      "surface": "#f8f9fa",
+                      "tertiary-container": "#001945",
+                      "primary-container": "#1c1b1b",
+                      "secondary-fixed-dim": "#ffb4ab"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "margin-desktop": "40px",
+                      "base": "4px",
+                      "column-gap": "24px",
+                      "gutter": "24px",
+                      "margin-mobile": "16px"
+              },
+              "fontFamily": {
+                      "headline-lg": ["EB Garamond"],
+                      "label-md": ["Hanken Grotesk"],
+                      "label-sm": ["Hanken Grotesk"],
+                      "headline-md": ["EB Garamond"],
+                      "headline-xl": ["EB Garamond"],
+                      "body-lg": ["Hanken Grotesk"],
+                      "body-md": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.03em", "fontWeight": "700"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "500"}],
+                      "headline-xl": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md selection:bg-primary-fixed selection:text-primary overflow-hidden">
+<div class="flex h-screen overflow-hidden">
+<!-- Side Navigation Bar (From JSON) -->
+<aside class="flex flex-col h-screen py-8 border-r border-outline-variant dark:border-outline bg-surface dark:bg-surface-dim w-64 shrink-0">
+<div class="px-6 mb-10 flex items-center gap-3">
+<img alt="B'Lao Barbershop Logo" class="w-12 h-12 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtQDa3KneHPRwimLEFRwaswpMYoqKVrEZXr7iJt8fVqDfh-o9ye8WtjkI1uMRx6Y6Lv7HMmfcdP8-SfQxFQSfRqfftRq3pAlpn0dqoLLpYKZyD2aYTR834jskFzZ-f_eEpi66YHEioWxduc7m14qmt_2_PO_c9TV76qe-4RdG11ICa9P794nF_A0HP7oHabrCwmCPBr-Pt_pswt6QdQIgTdu_6LAwELq2I5c3zB0LIOI5wCqbs_X6z1Al9tAJuafeftehpajRcZ9k-"/>
+<div>
+<h1 class="text-headline-md font-headline-lg font-bold text-primary dark:text-primary-fixed leading-tight">B'Lao Barbershop</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Master Management</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="group flex items-center px-6 py-3 text-on-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-all" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="group flex items-center px-6 py-3 text-on-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-all" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="content_cut">content_cut</span>
+<span class="font-label-md text-label-md">Services</span>
+</a>
+<a class="group flex items-center px-6 py-3 bg-primary-container dark:bg-primary-container text-on-primary-container dark:text-on-primary-fixed-variant font-bold border-r-4 border-primary dark:border-primary-fixed translate-x-1 transition-transform" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="receipt_long">receipt_long</span>
+<span class="font-label-md text-label-md">Orders</span>
+</a>
+</nav>
+<div class="px-6 mb-8">
+<button class="w-full bg-primary text-on-primary py-3 rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:bg-on-primary-container transition-all active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="add">add</span>
+                    New Booking
+                </button>
+</div>
+<div class="border-t border-outline-variant mt-auto pt-4">
+<a class="group flex items-center px-6 py-3 text-on-surface-variant hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="help">help</span>
+<span class="font-label-md text-label-md">Support</span>
+</a>
+<a class="group flex items-center px-6 py-3 text-on-surface-variant hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined mr-3" data-icon="logout">logout</span>
+<span class="font-label-md text-label-md">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Workspace -->
+<main class="flex-1 flex flex-col min-w-0 bg-background overflow-hidden">
+<!-- Top App Bar -->
+<header class="flex justify-between items-center px-margin-desktop w-full h-16 bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline shrink-0">
+<div class="flex items-center gap-4">
+<h2 class="font-headline-md text-headline-md font-semibold text-primary">Orders Management</h2>
+<span class="px-3 py-1 bg-surface-container-high rounded-full font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Live Traffic</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-outline" data-icon="search">search</span>
+<input class="bg-surface-container-low border-none rounded-lg pl-10 pr-4 py-2 w-64 focus:ring-1 focus:ring-primary font-body-md text-body-md" placeholder="Search orders, clients..." type="text"/>
+</div>
+<div class="flex items-center gap-3">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-primary" data-icon="notifications">notifications</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-primary" data-icon="settings">settings</span>
+</button>
+<div class="h-8 w-px bg-outline-variant"></div>
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Portrait of a professional barber with a well-groomed beard, wearing a charcoal apron, in a bright, modern barbershop environment. High-key lighting emphasizing the clean, masculine aesthetic of the brand." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4jy_dQX1zekXNPMrESmFR2MGHrY7Oxq_YzINzkjRL8PzCvc9427Zmbj1YfvZdwYezEVwNjh9JKKsgAbg1X5ggJVD97EZ6GHNMmPju2uZZyCQcmUkckGyTiWmciiIKhqdoMNioksl2HpUas8qD5FVSQnwGJ_3U70JDBTOhdr7qc5z9cYp2ZWV35Gc62kxtqfCOTnVv3rJsGT0qEQvpozjrbDJjRIOrsJotWrdlzcED5rVXZCsZ7mgnK8P6SpCfSD7SmdnYDhZAm95s"/>
+</div>
+</div>
+</div>
+</header>
+<div class="flex-1 flex overflow-hidden">
+<!-- Center Content: Active & Create -->
+<div class="flex-1 flex flex-col p-margin-desktop gap-gutter overflow-y-auto">
+<!-- Create New Order Section (Bento Style) -->
+<section>
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-headline-lg text-headline-lg text-primary">Quick Create Order</h3>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-6 rounded-lg grid grid-cols-12 gap-6">
+<div class="col-span-12 md:col-span-4 space-y-4">
+<label class="block font-label-md text-label-md text-outline">Customer Name</label>
+<input class="w-full border border-outline-variant rounded p-3 focus:border-primary focus:ring-0" placeholder="Walk-in Customer" type="text"/>
+<label class="block font-label-md text-label-md text-outline">Preferred Barber</label>
+<select class="w-full border border-outline-variant rounded p-3 focus:border-primary focus:ring-0">
+<option>Any Available</option>
+<option>Marcus Aurelius</option>
+<option>Jean-Luc</option>
+<option>Vittorio</option>
+</select>
+</div>
+<div class="col-span-12 md:col-span-8 flex flex-col">
+<label class="block font-label-md text-label-md text-outline mb-4">Service Selection</label>
+<div class="grid grid-cols-3 gap-3 flex-1">
+<button class="flex flex-col items-start p-4 border border-outline-variant rounded hover:border-primary hover:bg-surface-container-low transition-all">
+<span class="font-headline-md text-[18px] mb-1">Classic Fade</span>
+<span class="font-label-sm text-outline">$35.00</span>
+</button>
+<button class="flex flex-col items-start p-4 border border-primary bg-primary-container rounded transition-all">
+<span class="font-headline-md text-[18px] mb-1 text-primary">Beard Trim</span>
+<span class="font-label-sm text-on-primary-container">$20.00</span>
+</button>
+<button class="flex flex-col items-start p-4 border border-outline-variant rounded hover:border-primary hover:bg-surface-container-low transition-all">
+<span class="font-headline-md text-[18px] mb-1">Royal Shave</span>
+<span class="font-label-sm text-outline">$45.00</span>
+</button>
+<button class="flex flex-col items-start p-4 border border-outline-variant rounded hover:border-primary hover:bg-surface-container-low transition-all">
+<span class="font-headline-md text-[18px] mb-1">Hair &amp; Beard</span>
+<span class="font-label-sm text-outline">$50.00</span>
+</button>
+<button class="flex flex-col items-start p-4 border border-outline-variant rounded hover:border-primary hover:bg-surface-container-low transition-all">
+<span class="font-headline-md text-[18px] mb-1">Head Shave</span>
+<span class="font-label-sm text-outline">$30.00</span>
+</button>
+<button class="flex items-center justify-center p-4 border border-dashed border-outline-variant rounded hover:border-primary transition-all">
+<span class="material-symbols-outlined text-outline" data-icon="add_circle">add_circle</span>
+<span class="ml-2 font-label-md text-outline">Custom</span>
+</button>
+</div>
+<button class="mt-6 self-end bg-primary text-on-primary px-8 py-3 rounded font-label-md uppercase tracking-widest active:scale-95 transition-all">
+                                    Start Service
+                                </button>
+</div>
+</div>
+</section>
+<!-- Active Orders Section -->
+<section class="flex-1 min-h-0">
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-headline-lg text-headline-lg text-primary">Active Orders</h3>
+<span class="font-label-md text-on-surface-variant">4 Sessions in Progress</span>
+</div>
+<div class="space-y-3">
+<!-- Order Card 1 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-5 flex items-center gap-6 group hover:shadow-md transition-shadow">
+<div class="w-12 h-12 rounded-full bg-tertiary-fixed flex items-center justify-center text-primary font-bold">JD</div>
+<div class="flex-1">
+<div class="flex items-center gap-3">
+<h4 class="font-headline-md text-[20px]">John Doe</h4>
+<span class="px-2 py-0.5 bg-tertiary-fixed text-on-tertiary-fixed text-[11px] font-bold rounded uppercase tracking-tighter">In-Progress</span>
+</div>
+<p class="font-body-md text-on-surface-variant">Classic Fade + Styling • <span class="font-semibold text-primary">Barber: Marcus</span></p>
+</div>
+<div class="text-right">
+<p class="font-headline-md text-[20px]">$35.00</p>
+<p class="font-label-sm text-outline">Started 24m ago</p>
+</div>
+<div class="flex gap-2">
+<button class="p-2 border border-outline-variant rounded hover:bg-surface-container transition-colors group-hover:border-primary" title="Hold Order">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="pause">pause</span>
+</button>
+<button class="px-4 py-2 bg-primary text-on-primary rounded font-label-md active:scale-95 transition-all">
+                                        Checkout
+                                    </button>
+</div>
+</div>
+<!-- Order Card 2 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-5 flex items-center gap-6 group hover:shadow-md transition-shadow">
+<div class="w-12 h-12 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold">BS</div>
+<div class="flex-1">
+<div class="flex items-center gap-3">
+<h4 class="font-headline-md text-[20px]">Ben Smith</h4>
+<span class="px-2 py-0.5 bg-tertiary-fixed text-on-tertiary-fixed text-[11px] font-bold rounded uppercase tracking-tighter">In-Progress</span>
+</div>
+<p class="font-body-md text-on-surface-variant">Royal Shave • <span class="font-semibold text-primary">Barber: Vittorio</span></p>
+</div>
+<div class="text-right">
+<p class="font-headline-md text-[20px]">$45.00</p>
+<p class="font-label-sm text-outline">Started 10m ago</p>
+</div>
+<div class="flex gap-2">
+<button class="p-2 border border-outline-variant rounded hover:bg-surface-container transition-colors group-hover:border-primary" title="Hold Order">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="pause">pause</span>
+</button>
+<button class="px-4 py-2 bg-primary text-on-primary rounded font-label-md active:scale-95 transition-all">
+                                        Checkout
+                                    </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Completed Today Section -->
+<section>
+<div class="flex items-center justify-between mb-4 border-b border-outline-variant pb-2">
+<h3 class="font-headline-md text-headline-md text-on-surface-variant">Completed Today</h3>
+<a class="text-primary font-label-md hover:underline" href="#">View History</a>
+</div>
+<table class="w-full text-left">
+<thead class="font-label-sm text-label-sm text-outline bg-surface-container-low">
+<tr>
+<th class="py-3 px-4 font-bold">ID</th>
+<th class="py-3 px-4 font-bold">CUSTOMER</th>
+<th class="py-3 px-4 font-bold">SERVICE</th>
+<th class="py-3 px-4 font-bold text-right">TOTAL</th>
+<th class="py-3 px-4 font-bold text-center">STATUS</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-4 px-4 font-label-md">#9821</td>
+<td class="py-4 px-4 font-headline-md text-[16px]">Aris Wright</td>
+<td class="py-4 px-4 font-body-md text-on-surface-variant">Beard Trim</td>
+<td class="py-4 px-4 text-right font-headline-md text-[16px]">$20.00</td>
+<td class="py-4 px-4 text-center">
+<span class="inline-block px-3 py-1 bg-green-100 text-green-800 text-[10px] font-bold rounded-full uppercase">Success</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-4 px-4 font-label-md">#9820</td>
+<td class="py-4 px-4 font-headline-md text-[16px]">Kevin Spacey</td>
+<td class="py-4 px-4 font-body-md text-on-surface-variant">Hair &amp; Beard</td>
+<td class="py-4 px-4 text-right font-headline-md text-[16px]">$50.00</td>
+<td class="py-4 px-4 text-center">
+<span class="inline-block px-3 py-1 bg-green-100 text-green-800 text-[10px] font-bold rounded-full uppercase">Success</span>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+</div>
+<!-- Right Sidebar: Held Orders (Lưu tạm) -->
+<aside class="w-80 border-l border-outline-variant bg-surface-container-low flex flex-col shrink-0">
+<div class="p-6 border-b border-outline-variant bg-surface-container-high">
+<div class="flex items-center gap-2 mb-1 text-secondary">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<h3 class="font-headline-md text-headline-md font-bold uppercase tracking-tight">Held Orders</h3>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Lưu tạm (3 Pending)</p>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-4">
+<!-- Held Order 1 -->
+<div class="bg-surface-container-lowest border border-secondary p-4 rounded-lg shadow-sm border-l-4">
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-headline-md text-[18px]">Tom Riddle</h4>
+<span class="font-label-sm text-outline">14:02</span>
+</div>
+<p class="font-body-md text-on-surface-variant mb-4">Head Shave + Toner</p>
+<div class="flex items-center justify-between">
+<span class="font-headline-md text-[18px] text-secondary">$38.00</span>
+<div class="flex gap-1">
+<button class="p-2 text-error hover:bg-error-container rounded transition-colors" title="Cancel">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+<button class="flex items-center gap-1 bg-secondary text-on-secondary px-3 py-1.5 rounded font-label-md active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[18px]" data-icon="play_arrow">play_arrow</span>
+                                        Resume
+                                    </button>
+</div>
+</div>
+</div>
+<!-- Held Order 2 -->
+<div class="bg-surface-container-lowest border border-outline-variant p-4 rounded-lg hover:border-secondary transition-all">
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-headline-md text-[18px]">Unspecified Client</h4>
+<span class="font-label-sm text-outline">13:45</span>
+</div>
+<p class="font-body-md text-on-surface-variant mb-4">Classic Fade</p>
+<div class="flex items-center justify-between">
+<span class="font-headline-md text-[18px] text-primary">$35.00</span>
+<div class="flex gap-1">
+<button class="p-2 text-error hover:bg-error-container rounded transition-colors" title="Cancel">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+<button class="flex items-center gap-1 bg-primary text-on-primary px-3 py-1.5 rounded font-label-md active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[18px]" data-icon="play_arrow">play_arrow</span>
+                                        Resume
+                                    </button>
+</div>
+</div>
+</div>
+<!-- Empty State Filler -->
+<div class="border-2 border-dashed border-outline-variant rounded-lg p-8 flex flex-col items-center justify-center text-outline opacity-50">
+<span class="material-symbols-outlined text-[48px] mb-2" data-icon="archive">archive</span>
+<p class="font-label-md text-center">Drop unfinished orders here to park them</p>
+</div>
+</div>
+<div class="p-4 bg-surface-container-highest border-t border-outline-variant">
+<div class="flex justify-between mb-4">
+<span class="font-label-md text-outline">Held Revenue</span>
+<span class="font-headline-md text-secondary">$108.00</span>
+</div>
+<button class="w-full border-1.5 border-primary text-primary py-3 rounded font-label-md uppercase tracking-widest hover:bg-primary-container transition-all">
+                            Clear All Held
+                        </button>
+</div>
+</aside>
+</div>
+</main>
+</div>
+<!-- Micro-interactions Script -->
+<script>
+        // Simple hover effect for "Resume" and "Start" actions
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                btn.style.filter = 'brightness(1.1)';
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.filter = 'brightness(1.0)';
+            });
+        });
+
+        // Search highlight effect
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('ring-1', 'ring-primary');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('ring-1', 'ring-primary');
+        });
+    </script>
+</body></html>

@@ -1,0 +1,91 @@
+{
+  "name": "blao-barber",
+  "private": true,
+  "version": "1.0.0",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "tsx watch server/index.ts",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node --import tsx server/index.ts",
+    "launch": "node scripts/launch.mjs",
+    "package:win": "powershell -ExecutionPolicy Bypass -File scripts/package-windows.ps1",
+    "package:zip": "powershell -ExecutionPolicy Bypass -File scripts/zip-release.ps1",
+    "package": "npm run package:win && npm run package:zip",
+    "package:exe": "powershell -ExecutionPolicy Bypass -File scripts/package-exe.ps1",
+    "package:exe:clean": "powershell -ExecutionPolicy Bypass -File scripts/clean-release.ps1",
+    "shortcut": "powershell -ExecutionPolicy Bypass -File scripts/tao-shortcut-desktop.ps1",
+    "shortcut:exe": "powershell -ExecutionPolicy Bypass -File scripts/tao-shortcut-exe.ps1",
+    "shortcut:fast": "powershell -ExecutionPolicy Bypass -File scripts/tao-shortcut-exe.ps1",
+    "package:setup": "powershell -ExecutionPolicy Bypass -File scripts/package-setup.ps1"
+  },
+  "build": {
+    "appId": "vn.blaobarber.quanlytiem",
+    "productName": "BLao Quan ly tiem",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "pack-staging/app",
+        "to": "app"
+      },
+      {
+        "from": "runtime/node",
+        "to": "node"
+      }
+    ],
+    "win": {
+      "target": [
+        { "target": "portable", "arch": ["x64"] },
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "BLaoBarber-${version}-portable.exe"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "B'Lao Quan ly tiem",
+      "artifactName": "BLaoBarber-${version}-Setup.exe"
+    }
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.1",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.25.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.6"
+  }
+}

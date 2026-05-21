@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-server
+pack-staging
+runtime/node
+release
+*.db
+.DS_Store
