@@ -5,6 +5,18 @@
 body {
   font-family: "Hanken Grotesk", sans-serif;
   -webkit-font-smoothing: antialiased;
+  background-color: #fffbf7;
+  color: #000000;
+}
+
+/* primary token = Tan (nền); chữ dùng primary → đen cho dễ đọc */
+@layer utilities {
+  .text-primary {
+    color: #000000;
+  }
+  .text-secondary {
+    color: #000000;
+  }
 }
 
 .material-symbols-outlined {

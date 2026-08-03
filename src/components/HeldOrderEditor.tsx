@@ -1,18 +1,35 @@
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
-import { OrderCartPreview, type CartLine } from "./OrderCartPreview";
+import { OrderCartPreview } from "./OrderCartPreview";
+import {
+  cartToOrderItems,
+  newCartLineId,
+  validateCartBeforeSubmit,
+  type CartLine,
+} from "../cartTypes";
 import { labels } from "../labels";
-import type { Order, Service } from "../types";
-import { BARBERS, formatMoney } from "../utils";
+import type { Employee, Order, Service } from "../types";
+import { formatMoney } from "../utils";
 
 const O = labels.orders;
 
-export function orderToCart(order: Order): CartLine[] {
+export function orderToCart(order: Order, employees: Employee[] = []): CartLine[] {
   if (order.items?.length) {
-    return order.items.map((i) => ({ serviceId: i.service_id, quantity: i.quantity }));
+    return order.items.map((i, idx) => ({
+      lineId: `item-${order.id}-${idx}`,
+      serviceId: i.service_id,
+      quantity: i.quantity,
+      assignments: (i.assignments ?? []).map((a) => {
+        const emp = employees.find((e) => e.id === a.employee_id);
+        return {
+          employeeId: a.employee_id,
+          roleId: emp?.role_id ?? a.role_id,
+        };
+      }),
+    }));
   }
   if (order.service_id) {
-    return [{ serviceId: order.service_id, quantity: 1 }];
+    return [{ lineId: newCartLineId(), serviceId: order.service_id, quantity: 1, assignments: [] }];
   }
   return [];
 }
@@ -20,70 +37,81 @@ export function orderToCart(order: Order): CartLine[] {
 type Props = {
   order: Order;
   services: Service[];
+  employees: Employee[];
   onClose: () => void;
   onSave: (data: {
     customer_name: string;
-    barber: string;
-    items: { service_id: number; quantity: number }[];
+    items: ReturnType<typeof cartToOrderItems>;
+    discount_percent?: number;
   }) => Promise<void>;
 };
 
-export function HeldOrderEditor({ order, services, onClose, onSave }: Props) {
+export function HeldOrderEditor({ order, services, employees, onClose, onSave }: Props) {
   const [customerName, setCustomerName] = useState(order.customer_name);
-  const [barber, setBarber] = useState(order.barber);
-  const [cart, setCart] = useState<CartLine[]>(() => orderToCart(order));
+  const [cart, setCart] = useState<CartLine[]>(() => orderToCart(order, employees));
+  const [discountPercent, setDiscountPercent] = useState<number>(order.discount_percent ?? 0);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setCustomerName(order.customer_name);
-    setBarber(order.barber);
-    setCart(orderToCart(order));
-  }, [order]);
+    setCart(orderToCart(order, employees));
+    setDiscountPercent(order.discount_percent ?? 0);
+  }, [order, employees]);
 
-  const cartQty = (serviceId: number) => cart.find((c) => c.serviceId === serviceId)?.quantity ?? 0;
+  const cartQty = (serviceId: number) =>
+    cart.filter((c) => c.serviceId === serviceId).reduce((s, c) => s + c.quantity, 0);
 
   const addService = (serviceId: number) => {
-    setCart((prev) => {
-      const idx = prev.findIndex((c) => c.serviceId === serviceId);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { ...next[idx], quantity: Math.min(99, next[idx].quantity + 1) };
-        return next;
-      }
-      return [...prev, { serviceId, quantity: 1 }];
-    });
+    setCart((prev) => [...prev, { lineId: newCartLineId(), serviceId, quantity: 1, assignments: [] }]);
   };
 
-  const changeCartQty = (serviceId: number, quantity: number) => {
+  const changeCartQty = (lineId: string, quantity: number) => {
     if (quantity < 1) {
-      setCart((prev) => prev.filter((c) => c.serviceId !== serviceId));
+      setCart((prev) => prev.filter((c) => c.lineId !== lineId));
       return;
     }
     setCart((prev) =>
-      prev.map((c) => (c.serviceId === serviceId ? { ...c, quantity: Math.min(99, quantity) } : c))
+      prev.map((c) => (c.lineId === lineId ? { ...c, quantity: Math.min(99, quantity) } : c))
     );
   };
 
-  const removeFromCart = (serviceId: number) => {
-    setCart((prev) => prev.filter((c) => c.serviceId !== serviceId));
+  const removeFromCart = (lineId: string) => {
+    setCart((prev) => prev.filter((c) => c.lineId !== lineId));
   };
 
-  const cartTotal = cart.reduce((sum, line) => {
+  const setAssignments = (lineId: string, assignments: CartLine["assignments"]) => {
+    setCart((prev) => prev.map((c) => (c.lineId === lineId ? { ...c, assignments } : c)));
+  };
+
+  const cartSubtotal = cart.reduce((sum, line) => {
     const svc = services.find((s) => s.id === line.serviceId);
     return sum + (svc ? svc.price * line.quantity : 0);
   }, 0);
+  const safeDiscount = Number.isFinite(discountPercent)
+    ? Math.max(0, Math.min(100, discountPercent))
+    : 0;
+  const cartTotal = Math.max(0, Math.round(cartSubtotal * (1 - safeDiscount / 100)));
+
+  const applyAssignmentsToAll = (sourceLineId: string, assignments: CartLine["assignments"]) => {
+    setCart((prev) => prev.map((c) => (c.lineId === sourceLineId ? c : { ...c, assignments })));
+  };
 
   const handleSave = async () => {
     if (cart.length === 0) {
       alert(O.needService);
       return;
     }
+    const cartErr = validateCartBeforeSubmit(cart, services, employees);
+    if (cartErr) {
+      alert(cartErr);
+      return;
+    }
     setSaving(true);
     try {
       await onSave({
         customer_name: customerName,
-        barber,
-        items: cart.map((c) => ({ service_id: c.serviceId, quantity: c.quantity })),
+        items: cartToOrderItems(cart),
+        discount_percent: safeDiscount,
       });
       onClose();
     } catch (err) {
@@ -110,36 +138,25 @@ export function HeldOrderEditor({ order, services, onClose, onSave }: Props) {
         </header>
 
         <div className="p-6 space-y-6 flex-1">
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="block font-label-md text-outline">
-              {O.customer}
-              <input
-                className="w-full mt-1 border border-outline-variant rounded p-3 focus:border-primary outline-none"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-              />
-            </label>
-            <label className="block font-label-md text-outline">
-              {O.barber}
-              <select
-                className="w-full mt-1 border border-outline-variant rounded p-3"
-                value={barber}
-                onChange={(e) => setBarber(e.target.value)}
-              >
-                {BARBERS.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </section>
+          <label className="block font-label-md text-outline">
+            {O.customer}
+            <input
+              className="w-full mt-1 border border-outline-variant rounded p-3 focus:border-primary outline-none"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+            />
+          </label>
 
           <OrderCartPreview
             cart={cart}
             services={services}
+            employees={employees}
+            discountPercent={safeDiscount}
             onChangeQty={changeCartQty}
             onRemove={removeFromCart}
+            onAssignmentsChange={setAssignments}
+            onApplyAssignmentsToAll={applyAssignmentsToAll}
+            onDiscountPercentChange={(n) => setDiscountPercent(Number(n) || 0)}
           />
 
           <section>

@@ -101,7 +101,7 @@ export function DashboardPage() {
       </header>
 
       <section className="p-margin-mobile md:p-margin-desktop space-y-gutter pb-8">
-        <section className="bg-white border border-outline-variant p-4 md:p-6 flex flex-col md:flex-row md:items-end gap-4 flex-wrap">
+        <section className="bg-surface border border-outline-variant p-4 md:p-6 flex flex-col md:flex-row md:items-end gap-4 flex-wrap">
           <div className="flex rounded-lg border border-outline-variant overflow-hidden flex-wrap">
             <button type="button" onClick={() => setMode("day")} className={tabClass(mode === "day")}>
               {L.filterByDay}
@@ -216,7 +216,7 @@ export function DashboardPage() {
         {stats && !loading && (
           <>
             <section className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
-              <article className="bg-white border border-outline-variant p-6 flex flex-col justify-between">
+              <article className="bg-surface border border-outline-variant p-6 flex flex-col justify-between">
                 <p className="text-label-sm text-on-surface-variant uppercase tracking-wider">
                   {stats.customerLabel}
                 </p>
@@ -227,7 +227,7 @@ export function DashboardPage() {
                   {stats.customerGrowthPct}% {stats.growthCompareLabel}
                 </p>
               </article>
-              <article className="bg-white border border-outline-variant p-6 flex flex-col justify-between">
+              <article className="bg-surface border border-outline-variant p-6 flex flex-col justify-between">
                 <p className="text-label-sm text-on-surface-variant uppercase tracking-wider">
                   {L.topService}
                 </p>
@@ -241,16 +241,16 @@ export function DashboardPage() {
                 </p>
               </article>
               <article className="bg-primary text-on-primary border border-primary p-6 flex flex-col justify-between">
-                <p className="text-label-sm text-primary-fixed uppercase tracking-wider">{stats.revenueLabel}</p>
-                <h3 className="font-headline-xl text-headline-xl mt-4">{formatMoney(stats.revenue)}</h3>
-                <p className="text-label-sm text-primary-fixed-dim mt-2">
+                <p className="text-label-sm text-black/80 uppercase tracking-wider">{stats.revenueLabel}</p>
+                <h3 className="font-headline-xl text-headline-xl mt-4 text-black">{formatMoney(stats.revenue)}</h3>
+                <p className="text-label-sm text-black/70 mt-2">
                   {stats.revenueGrowthPct >= 0 ? "+" : ""}
                   {stats.revenueGrowthPct}% {stats.growthCompareLabel}
                 </p>
               </article>
             </section>
 
-            <section className="bg-white border border-outline-variant overflow-hidden">
+            <section className="bg-surface border border-outline-variant overflow-hidden">
               <header className="px-8 py-6 border-b border-outline-variant flex justify-between items-center flex-wrap gap-4">
                 <span>
                   <h3 className="font-headline-md text-headline-md text-primary">{L.statsByService}</h3>

@@ -27,13 +27,22 @@ Write-Host "==> Clean old release..." -ForegroundColor Cyan
 & "$Root\scripts\clean-release.ps1"
 if ($LASTEXITCODE -ne 0) { throw "clean-release failed" }
 
+$outDir = if ($env:BLAO_ELECTRON_OUTPUT) { $env:BLAO_ELECTRON_OUTPUT } else { "release" }
+$outPath = Join-Path $Root $outDir
+Write-Host "==> Output folder: $outPath" -ForegroundColor Cyan
+
 Write-Host "==> Building installer NSIS (5-15 minutes)..." -ForegroundColor Cyan
-npm exec electron-builder -- --win nsis --x64
+# electron-builder: dung --config.* (khong dung -c.* vi -c = duong dan file config)
+if ($outDir -eq "release") {
+  npm exec electron-builder -- --win nsis --x64
+} else {
+  npm exec electron-builder -- --win nsis --x64 "--config.directories.output=$outDir"
+}
 if ($LASTEXITCODE -ne 0) { throw "electron-builder NSIS failed" }
 
 Pop-Location
 
-$Setup = Get-ChildItem (Join-Path $Root "release") -Filter "*Setup*.exe" -ErrorAction SilentlyContinue |
+$Setup = Get-ChildItem $outPath -Filter "*Setup*.exe" -ErrorAction SilentlyContinue |
   Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
 Write-Host ""
@@ -46,7 +55,7 @@ if ($Setup) {
   Write-Host "  2. Tu co shortcut Desktop: BLao Quan ly tiem"
   Write-Host "  3. Hang ngay bam shortcut, KHONG bam lai Setup"
 } else {
-  Write-Host "Build xong nhung khong thay *Setup*.exe trong release\" -ForegroundColor Yellow
-  Write-Host "Xem thu muc: $Root\release"
+  Write-Host "Build xong nhung khong thay *Setup*.exe trong $outDir\" -ForegroundColor Yellow
+  Write-Host "Xem thu muc: $outPath"
 }
 Write-Host ""

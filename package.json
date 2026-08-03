@@ -23,7 +23,8 @@
     "shortcut": "powershell -ExecutionPolicy Bypass -File scripts/tao-shortcut-desktop.ps1",
     "shortcut:exe": "powershell -ExecutionPolicy Bypass -File scripts/tao-shortcut-exe.ps1",
     "shortcut:fast": "powershell -ExecutionPolicy Bypass -File scripts/tao-shortcut-exe.ps1",
-    "package:setup": "powershell -ExecutionPolicy Bypass -File scripts/package-setup.ps1"
+    "package:setup": "powershell -ExecutionPolicy Bypass -File scripts/package-setup.ps1",
+    "package:setup:force": "powershell -ExecutionPolicy Bypass -File scripts/package-setup-force.ps1"
   },
   "build": {
     "appId": "vn.blaobarber.quanlytiem",

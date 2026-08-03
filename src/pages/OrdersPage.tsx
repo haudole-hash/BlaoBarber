@@ -1,14 +1,31 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
 import { HeldOrderEditor } from "../components/HeldOrderEditor";
-import { OrderCartPreview, type CartLine } from "../components/OrderCartPreview";
-import type { Order, Service } from "../types";
+import { OrderDetailModal } from "../components/OrderDetailModal";
+import { OrderCartPreview } from "../components/OrderCartPreview";
+import {
+  cartToOrderItems,
+  newCartLineId,
+  validateCartBeforeSubmit,
+  type CartLine,
+} from "../cartTypes";
+import type { Employee, Order, Service } from "../types";
 import { labels } from "../labels";
-import { BARBERS, formatMoney, formatTime, initials, minutesAgo, PAGE_TITLE_CLASS } from "../utils";
+import {
+  formatMoney,
+  formatTime,
+  groupServicesByCategoryForOrders,
+  initials,
+  localDateString,
+  minutesAgo,
+  PAGE_TITLE_CLASS,
+} from "../utils";
 
 const O = labels.orders;
+
+const WALK_IN_CUSTOMER = "Khách vãng lai";
 
 export function OrdersPage() {
   const [searchParams] = useSearchParams();
@@ -18,27 +35,43 @@ export function OrdersPage() {
   const [completed, setCompleted] = useState<Order[]>([]);
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
 
-  const [customerName, setCustomerName] = useState("Khách vãng lai");
-  const [barber, setBarber] = useState(BARBERS[0]);
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [discountPercent, setDiscountPercent] = useState(0);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [editingHeld, setEditingHeld] = useState<Order | null>(null);
+  const [completedDate, setCompletedDate] = useState(localDateString);
+  const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+
+  const loadCompleted = useCallback(async (date: string) => {
+    const done = await api.orders.list({ status: "completed", date });
+    setCompleted(done);
+  }, []);
 
   const load = useCallback(async () => {
-    const [svc, inProg, heldList, done] = await Promise.all([
+    const [svc, inProg, heldList, emps] = await Promise.all([
       api.services.list(),
       api.orders.list({ status: "in_progress" }),
       api.orders.list({ status: "held" }),
-      api.orders.list({ status: "completed", today: true }),
+      api.employees.list(),
     ]);
     setServices(svc);
     setActive(inProg);
     setHeld(heldList);
-    setCompleted(done);
+    setEmployees(emps);
   }, []);
 
   useEffect(() => {
     load().catch(console.error);
   }, [load]);
+
+  useEffect(() => {
+    loadCompleted(completedDate).catch(console.error);
+  }, [completedDate, loadCompleted]);
+
+  const reloadAll = async () => {
+    await load();
+    await loadCompleted(completedDate);
+  };
 
   useEffect(() => {
     const q = searchParams.get("search");
@@ -55,32 +88,40 @@ export function OrdersPage() {
 
   const heldRevenue = held.reduce((s, o) => s + o.amount, 0);
 
-  const cartQty = (serviceId: number) => cart.find((c) => c.serviceId === serviceId)?.quantity ?? 0;
+  const { categories, byCategory } = useMemo(
+    () => groupServicesByCategoryForOrders(services),
+    [services]
+  );
+
+  const cartQty = (serviceId: number) =>
+    cart.filter((c) => c.serviceId === serviceId).reduce((s, c) => s + c.quantity, 0);
 
   const addService = (serviceId: number) => {
-    setCart((prev) => {
-      const idx = prev.findIndex((c) => c.serviceId === serviceId);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { ...next[idx], quantity: Math.min(99, next[idx].quantity + 1) };
-        return next;
-      }
-      return [...prev, { serviceId, quantity: 1 }];
-    });
+    setCart((prev) => [...prev, { lineId: newCartLineId(), serviceId, quantity: 1, assignments: [] }]);
   };
 
-  const changeCartQty = (serviceId: number, quantity: number) => {
+  const changeCartQty = (lineId: string, quantity: number) => {
     if (quantity < 1) {
-      setCart((prev) => prev.filter((c) => c.serviceId !== serviceId));
+      setCart((prev) => prev.filter((c) => c.lineId !== lineId));
       return;
     }
     setCart((prev) =>
-      prev.map((c) => (c.serviceId === serviceId ? { ...c, quantity: Math.min(99, quantity) } : c))
+      prev.map((c) => (c.lineId === lineId ? { ...c, quantity: Math.min(99, quantity) } : c))
     );
   };
 
-  const removeFromCart = (serviceId: number) => {
-    setCart((prev) => prev.filter((c) => c.serviceId !== serviceId));
+  const removeFromCart = (lineId: string) => {
+    setCart((prev) => prev.filter((c) => c.lineId !== lineId));
+  };
+
+  const setAssignments = (lineId: string, assignments: CartLine["assignments"]) => {
+    setCart((prev) => prev.map((c) => (c.lineId === lineId ? { ...c, assignments } : c)));
+  };
+
+  const applyAssignmentsToAll = (sourceLineId: string, assignments: CartLine["assignments"]) => {
+    setCart((prev) =>
+      prev.map((c) => (c.lineId === sourceLineId ? c : { ...c, assignments }))
+    );
   };
 
   const startOrder = async () => {
@@ -88,60 +129,99 @@ export function OrdersPage() {
       alert(O.needService);
       return;
     }
+    const cartErr = validateCartBeforeSubmit(cart, services, employees);
+    if (cartErr) {
+      alert(cartErr);
+      return;
+    }
     await api.orders.create({
-      customer_name: customerName,
-      barber,
+      customer_name: WALK_IN_CUSTOMER,
       status: "in_progress",
-      items: cart.map((c) => ({ service_id: c.serviceId, quantity: c.quantity })),
+      items: cartToOrderItems(cart),
+      discount_percent: discountPercent,
     });
-    setCustomerName("Khách vãng lai");
     setCart([]);
-    await load();
+    setDiscountPercent(0);
+    await reloadAll();
+  };
+
+  const validateOrderHasStaff = (order: Order): string | null => {
+    for (const item of order.items ?? []) {
+      if (!item.assignments?.length) {
+        return `«${item.name}»: chưa có thợ. Hủy đơn và tạo lại sau khi đã gán thợ cho từng dịch vụ.`;
+      }
+    }
+    return null;
   };
 
   const checkout = async (id: number) => {
-    await api.orders.update(id, { status: "completed" });
-    await load();
+    const order = active.find((o) => o.id === id);
+    if (order) {
+      const err = validateOrderHasStaff(order);
+      if (err) {
+        alert(err);
+        return;
+      }
+    }
+    try {
+      await api.orders.update(id, { status: "completed" });
+      await reloadAll();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Không thể thu tiền");
+    }
   };
 
   const holdOrder = async (id: number) => {
     await api.orders.update(id, { status: "held" });
-    await load();
+    await reloadAll();
   };
 
   const resumeOrder = async (id: number) => {
     await api.orders.update(id, { status: "in_progress" });
-    await load();
+    await reloadAll();
   };
 
   const cancelOrder = async (id: number) => {
     if (!confirm(O.cancelOrderConfirm)) return;
     await api.orders.cancel(id);
-    await load();
+    await reloadAll();
+  };
+
+  const deleteCompletedOrder = async (order: Order, e: MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(O.deletePaidOrderConfirm(order.id, formatMoney(order.amount)))) return;
+    try {
+      await api.orders.cancel(order.id);
+      await loadCompleted(completedDate);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Không thể xóa đơn");
+    }
   };
 
   const clearHeld = async () => {
     if (!confirm(O.clearHeldConfirm)) return;
     await api.orders.clearHeld();
-    await load();
+    await reloadAll();
   };
 
   const saveHeldEdit = async (
     id: number,
-    data: { customer_name: string; barber: string; items: { service_id: number; quantity: number }[] }
+    data: { customer_name: string; items: ReturnType<typeof cartToOrderItems>; discount_percent?: number }
   ) => {
     const updated = await api.orders.update(id, {
       customer_name: data.customer_name,
-      barber: data.barber,
       items: data.items,
       status: "held",
+      discount_percent: data.discount_percent,
     });
     setHeld((prev) => prev.map((o) => (o.id === id ? updated : o)));
-    await load();
+    await reloadAll();
   };
 
+  const completedDayTotal = filteredCompleted.reduce((s, o) => s + o.amount, 0);
+
   return (
-    <>
+    <div className="flex flex-col h-[calc(100dvh-4rem)] md:h-screen overflow-hidden">
       <header className="flex justify-between items-center px-margin-mobile md:px-margin-desktop h-16 border-b border-outline-variant bg-surface shrink-0">
         <h2 className={PAGE_TITLE_CLASS}>{labels.pageTitle.orders}</h2>
         <label className="relative flex items-center">
@@ -160,75 +240,70 @@ export function OrdersPage() {
           {/* Quick create */}
           <section>
             <h3 className="font-headline-lg text-primary mb-4">{O.quickCreate}</h3>
-            <article className="bg-surface-container-lowest border border-outline-variant p-6 rounded-lg grid grid-cols-12 gap-6">
-              <section className="col-span-12 md:col-span-4 space-y-4">
-                <label className="block font-label-md text-outline">
-                  {O.customer}
-                  <input
-                    className="w-full mt-1 border border-outline-variant rounded p-3 focus:border-primary outline-none"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                  />
-                </label>
-                <label className="block font-label-md text-outline">
-                  {O.barber}
-                  <select
-                    className="w-full mt-1 border border-outline-variant rounded p-3"
-                    value={barber}
-                    onChange={(e) => setBarber(e.target.value)}
-                  >
-                    {BARBERS.map((b) => (
-                      <option key={b} value={b}>
-                        {b}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </section>
-              <section className="col-span-12 md:col-span-8 flex flex-col">
+            <article className="bg-surface-container-lowest border border-outline-variant p-6 rounded-lg">
+              <p className="font-label-md text-outline mb-4">{O.pickService}</p>
+              {categories.length === 0 ? (
+                <p className="text-on-surface-variant">{O.noServices}</p>
+              ) : (
+                <section className="flex gap-3 overflow-x-auto pb-2 min-h-[280px]">
+                  {categories.map((cat) => {
+                    const list = byCategory.get(cat) ?? [];
+                    return (
+                      <div
+                        key={cat}
+                        className="flex flex-col min-w-[180px] flex-1 max-w-[240px] border border-outline-variant rounded-lg bg-surface overflow-hidden"
+                      >
+                        <h4 className="px-3 py-2.5 bg-surface-container-low border-b border-outline-variant font-label-md text-primary text-center shrink-0">
+                          {cat}
+                        </h4>
+                        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                          {list.map((s) => {
+                              const qty = cartQty(s.id);
+                              return (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => addService(s.id)}
+                                  className={`relative w-full flex flex-col items-start p-3 border rounded text-left transition-all ${
+                                    qty > 0
+                                      ? "border-primary ring-2 ring-primary bg-surface-container-low"
+                                      : "border-outline-variant hover:border-primary hover:bg-surface-container-low"
+                                  }`}
+                                >
+                                  {qty > 0 && (
+                                    <span className="absolute top-2 right-2 min-w-[22px] h-5 px-1 rounded-full bg-primary text-on-primary text-[11px] font-bold flex items-center justify-center">
+                                      ×{qty}
+                                    </span>
+                                  )}
+                                  <span className="font-label-md text-primary pr-7 leading-snug">{s.name}</span>
+                                  <span className="font-label-sm text-on-surface-variant mt-1">
+                                    {formatMoney(s.price)}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </section>
+              )}
+              <section className="lg:hidden mt-6">
                 <OrderCartPreview
                   cart={cart}
                   services={services}
+                  employees={employees}
+                  discountPercent={discountPercent}
                   onChangeQty={changeCartQty}
                   onRemove={removeFromCart}
+                  onAssignmentsChange={setAssignments}
+                  onApplyAssignmentsToAll={applyAssignmentsToAll}
+                  onDiscountPercentChange={(n) =>
+                    setDiscountPercent(Math.max(0, Math.min(100, Number(n) || 0)))
+                  }
+                  onStart={startOrder}
+                  startDisabled={cart.length === 0}
                 />
-                <p className="font-label-md text-outline mb-4">{O.pickService}</p>
-                <section className="grid grid-cols-2 md:grid-cols-3 gap-3 flex-1">
-                  {services.map((s) => {
-                    const qty = cartQty(s.id);
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => addService(s.id)}
-                        className={`relative flex flex-col items-start p-4 border rounded text-left transition-all ${
-                          qty > 0
-                            ? "border-primary ring-2 ring-primary bg-surface"
-                            : "border-outline-variant hover:border-primary hover:bg-surface-container-low"
-                        }`}
-                      >
-                        {qty > 0 && (
-                          <span className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 rounded-full bg-primary text-on-primary text-label-sm flex items-center justify-center">
-                            ×{qty}
-                          </span>
-                        )}
-                        <span className="font-headline-md text-[18px] mb-1 pr-8 text-primary">{s.name}</span>
-                        <span className="font-label-sm text-on-surface-variant">{formatMoney(s.price)}</span>
-                      </button>
-                    );
-                  })}
-                  {services.length === 0 && (
-                    <p className="col-span-full text-on-surface-variant">{O.noServices}</p>
-                  )}
-                </section>
-                <button
-                  type="button"
-                  onClick={startOrder}
-                  disabled={cart.length === 0}
-                  className="mt-6 self-end bg-primary text-on-primary px-8 py-3 rounded font-label-md uppercase tracking-widest disabled:opacity-40 active:scale-95"
-                >
-                  {O.start}
-                </button>
               </section>
             </article>
           </section>
@@ -292,48 +367,100 @@ export function OrdersPage() {
 
           {/* Completed */}
           <section>
-            <header className="flex justify-between mb-4 border-b border-outline-variant pb-2">
-              <h3 className="font-headline-md text-on-surface-variant">{O.completedToday}</h3>
+            <header className="flex flex-wrap justify-between items-end gap-4 mb-4 border-b border-outline-variant pb-3">
+              <span>
+                <h3 className="font-headline-md text-primary">{O.completedOrders}</h3>
+                <p className="text-label-sm text-on-surface-variant">{O.clickRowHint}</p>
+              </span>
+              <label className="font-label-md text-outline">
+                {O.completedPickDay}
+                <input
+                  type="date"
+                  className="block mt-1 border border-outline-variant rounded px-3 py-2"
+                  value={completedDate}
+                  onChange={(e) => setCompletedDate(e.target.value)}
+                />
+              </label>
+              <span className="text-label-sm text-on-surface-variant">
+                {O.completedDayCount(filteredCompleted.length)}
+              </span>
             </header>
-            <table className="w-full text-left">
-              <thead className="font-label-sm text-outline bg-surface-container-low">
-                <tr>
-                  <th className="py-3 px-4">{O.colId}</th>
-                  <th className="py-3 px-4">{O.colCustomer}</th>
-                  <th className="py-3 px-4">{O.colService}</th>
-                  <th className="py-3 px-4 text-right">{O.colTotal}</th>
-                  <th className="py-3 px-4 text-center">{O.colStatus}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant">
-                {filteredCompleted.map((o) => (
-                  <tr key={o.id} className="hover:bg-surface-container-low">
-                    <td className="py-4 px-4 font-label-md">#{o.id}</td>
-                    <td className="py-4 px-4">{o.customer_name}</td>
-                    <td className="py-4 px-4 text-on-surface-variant">{o.service_name}</td>
-                    <td className="py-4 px-4 text-right font-semibold">{formatMoney(o.amount)}</td>
-                    <td className="py-4 px-4 text-center">
-                      <span className="inline-block px-3 py-1 bg-green-100 text-green-800 text-[10px] font-bold rounded-full uppercase">
-                        {O.paid}
-                      </span>
-                    </td>
+            <div className="border border-outline-variant rounded-lg overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="font-label-sm text-outline bg-surface-container-low">
+                  <tr>
+                    <th className="py-3 px-4">{O.colId}</th>
+                    <th className="py-3 px-4">{O.colTime}</th>
+                    <th className="py-3 px-4">{O.colCustomer}</th>
+                    <th className="py-3 px-4">{O.colService}</th>
+                    <th className="py-3 px-4 text-right">{O.colTotal}</th>
+                    <th className="py-3 px-4 text-center">{O.colStatus}</th>
+                    <th className="py-3 px-4 w-12" aria-label={O.colActions} />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-outline-variant">
+                  {filteredCompleted.map((o) => (
+                    <tr
+                      key={o.id}
+                      className="hover:bg-surface-container-low cursor-pointer"
+                      onClick={() => setDetailOrder(o)}
+                    >
+                      <td className="py-4 px-4 font-label-md">#{o.id}</td>
+                      <td className="py-4 px-4 text-on-surface-variant text-label-sm">
+                        {o.completed_at ? formatTime(o.completed_at) : "—"}
+                      </td>
+                      <td className="py-4 px-4">{o.customer_name}</td>
+                      <td className="py-4 px-4 text-on-surface-variant">{o.service_name}</td>
+                      <td className="py-4 px-4 text-right font-semibold">{formatMoney(o.amount)}</td>
+                      <td className="py-4 px-4 text-center">
+                        <span className="inline-block px-3 py-1 bg-primary-container text-on-primary-container text-[10px] font-bold rounded-full uppercase">
+                          {O.paid}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={(e) => deleteCompletedOrder(o, e)}
+                          className="p-2 text-error hover:bg-error-container rounded"
+                          title={O.deletePaidOrder}
+                        >
+                          <Icon name="delete" className="text-[20px]" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                {filteredCompleted.length > 0 && (
+                  <tfoot className="bg-surface-container-highest border-t-2 border-primary/20">
+                    <tr>
+                      <td colSpan={5} className="py-3 px-4 font-label-md text-primary">
+                        {O.completedDayTotal}
+                      </td>
+                      <td className="py-4 px-4 text-right font-headline-md text-primary">
+                        {formatMoney(completedDayTotal)}
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+              {filteredCompleted.length === 0 && (
+                <p className="p-8 text-center text-on-surface-variant text-label-md">{O.noCompletedDay}</p>
+              )}
+            </div>
           </section>
         </section>
 
-        {/* Held sidebar */}
-        <aside className="hidden lg:flex w-80 border-l border-outline-variant bg-surface-container-low flex-col shrink-0">
-          <header className="p-6 border-b border-outline-variant bg-surface-container-high">
+        {/* Held sidebar + cart preview */}
+        <aside className="hidden lg:flex w-[min(400px,32vw)] border-l border-outline-variant bg-surface-container-low flex-col shrink-0 sticky top-0 self-start h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)]">
+          <header className="p-6 border-b border-outline-variant bg-surface-container-high shrink-0">
             <span className="flex items-center gap-2 text-secondary mb-1">
               <Icon name="inventory_2" />
               <h3 className="font-headline-md font-bold uppercase">{O.heldTitle}</h3>
             </span>
             <p className="text-label-sm text-on-surface-variant">{O.heldPending(held.length)}</p>
           </header>
-          <section className="flex-1 overflow-y-auto p-4 space-y-4">
+          <section className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
             {held.map((o) => (
               <article
                 key={o.id}
@@ -343,14 +470,26 @@ export function OrdersPage() {
                   <h4 className="font-headline-md text-[18px]">{o.customer_name}</h4>
                   <span className="text-label-sm text-outline">{formatTime(o.created_at)}</span>
                 </header>
-                <ul className="text-label-sm text-on-surface-variant mb-3 space-y-0.5">
+                <ul className="text-label-sm text-on-surface-variant mb-3 space-y-1">
                   {(o.items?.length ? o.items : [{ name: o.service_name, quantity: 1 }]).map((item, idx) => (
                     <li key={idx}>
                       · {item.name}
                       {"quantity" in item && item.quantity > 1 ? ` ×${item.quantity}` : ""}
+                      {"assignments" in item && item.assignments?.length
+                        ? ` — ${item.assignments
+                            .map(
+                              (a) =>
+                                a.employee_name ??
+                                employees.find((e) => e.id === a.employee_id)?.name ??
+                                ""
+                            )
+                            .filter(Boolean)
+                            .join(", ")}`
+                        : ""}
                     </li>
                   ))}
                 </ul>
+                <p className="text-label-sm text-outline mb-2">{O.staffOnOrder}: {o.barber}</p>
                 <footer className="flex flex-col gap-2">
                   <span className="font-headline-md text-secondary">{formatMoney(o.amount)}</span>
                   <span className="flex gap-1 flex-wrap">
@@ -389,19 +528,39 @@ export function OrdersPage() {
               </p>
             )}
           </section>
-          <footer className="p-4 bg-surface-container-highest border-t border-outline-variant">
-            <p className="flex justify-between mb-4">
-              <span className="text-outline">{O.heldRevenue}</span>
-              <span className="font-headline-md text-secondary">{formatMoney(heldRevenue)}</span>
-            </p>
-            <button
-              type="button"
-              onClick={clearHeld}
-              disabled={held.length === 0}
-              className="w-full border border-primary text-primary py-3 rounded font-label-md uppercase disabled:opacity-40"
-            >
-              {O.clearAllHeld}
-            </button>
+          <footer className="shrink-0 border-t border-outline-variant bg-surface-container-highest">
+            <div className="p-4 max-h-[min(50vh,420px)] overflow-y-auto">
+              <OrderCartPreview
+                variant="sidebar"
+                cart={cart}
+                services={services}
+                employees={employees}
+                discountPercent={discountPercent}
+                onChangeQty={changeCartQty}
+                onRemove={removeFromCart}
+                onAssignmentsChange={setAssignments}
+                onApplyAssignmentsToAll={applyAssignmentsToAll}
+                onDiscountPercentChange={(n) =>
+                  setDiscountPercent(Math.max(0, Math.min(100, Number(n) || 0)))
+                }
+                onStart={startOrder}
+                startDisabled={cart.length === 0}
+              />
+            </div>
+            <div className="p-4 border-t border-outline-variant">
+              <p className="flex justify-between mb-4">
+                <span className="text-outline">{O.heldRevenue}</span>
+                <span className="font-headline-md text-secondary">{formatMoney(heldRevenue)}</span>
+              </p>
+              <button
+                type="button"
+                onClick={clearHeld}
+                disabled={held.length === 0}
+                className="w-full border border-primary text-primary py-3 rounded font-label-md uppercase disabled:opacity-40"
+              >
+                {O.clearAllHeld}
+              </button>
+            </div>
           </footer>
         </aside>
       </section>
@@ -410,10 +569,19 @@ export function OrdersPage() {
         <HeldOrderEditor
           order={editingHeld}
           services={services}
+          employees={employees}
           onClose={() => setEditingHeld(null)}
           onSave={(data) => saveHeldEdit(editingHeld.id, data)}
         />
       )}
-    </>
+
+      {detailOrder && (
+        <OrderDetailModal
+          order={detailOrder}
+          employees={employees}
+          onClose={() => setDetailOrder(null)}
+        />
+      )}
+    </div>
   );
 }

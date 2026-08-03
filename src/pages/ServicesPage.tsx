@@ -1,10 +1,9 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
-import type { Service, ServiceStats } from "../types";
+import type { Service, ServiceRolePointRow, ServiceStats } from "../types";
 import { labels } from "../labels";
-import { CATEGORIES, DURATION_PRESETS, formatDuration, formatMoney, PAGE_TITLE_CLASS } from "../utils";
-
+import { DURATION_PRESETS, CATEGORIES, formatDuration, formatMoney, PAGE_TITLE_CLASS } from "../utils";
 const S = labels.services;
 const C = labels.common;
 
@@ -14,6 +13,7 @@ type ServiceForm = {
   duration_minutes: number | null;
   price: number;
   icon: string;
+  shop_percent: number;
 };
 
 const emptyForm: ServiceForm = {
@@ -22,6 +22,7 @@ const emptyForm: ServiceForm = {
   duration_minutes: null,
   price: 0,
   icon: "content_cut",
+  shop_percent: 0,
 };
 
 export function ServicesPage() {
@@ -31,27 +32,83 @@ export function ServicesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Service | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [rolePoints, setRolePoints] = useState<ServiceRolePointRow[]>([]);
+  const [categoryMeta, setCategoryMeta] = useState<{ name: string; serviceCount: number }[]>([]);
+  const [newCategory, setNewCategory] = useState("");
+
+  const categoryOptions = useMemo(() => {
+    const fromApi = categoryMeta.map((c) => c.name);
+    if (fromApi.length > 0) return fromApi;
+    return [...CATEGORIES];
+  }, [categoryMeta]);
+
+  const addCategory = async () => {
+    const name = newCategory.trim();
+    if (!name) return;
+    if (categoryOptions.includes(name)) {
+      alert(S.categoryExists);
+      setForm((f) => ({ ...f, category: name }));
+      setNewCategory("");
+      return;
+    }
+    try {
+      await api.serviceCategories.create(name);
+      setForm((f) => ({ ...f, category: name }));
+      setNewCategory("");
+      await load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Không thêm được loại");
+    }
+  };
+
+  const removeCategory = async (name: string) => {
+    const meta = categoryMeta.find((c) => c.name === name);
+    if (meta && meta.serviceCount > 0) {
+      alert(S.cannotDeleteCategoryInUse(meta.serviceCount));
+      return;
+    }
+    if (!confirm(S.deleteCategoryConfirm(name))) return;
+    try {
+      await api.serviceCategories.remove(name);
+      if (form.category === name) {
+        const next = categoryOptions.find((c) => c !== name) ?? "Dịch vụ cắt tóc";
+        setForm((f) => ({ ...f, category: next }));
+      }
+      await load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Không xóa được loại");
+    }
+  };
 
   const load = useCallback(async () => {
-    const [list, st] = await Promise.all([
+    const [list, st, catsResult] = await Promise.all([
       api.services.list(search || undefined),
       api.services.stats(),
+      api.serviceCategories.list().catch(() => ({ categories: [] as { name: string; serviceCount: number }[] })),
     ]);
     setServices(list);
     setStats(st);
+    setCategoryMeta(catsResult.categories);
   }, [search]);
 
   useEffect(() => {
     load().catch(console.error);
   }, [load]);
 
-  const openCreate = () => {
+  const openCreate = async () => {
     setEditing(null);
     setForm(emptyForm);
+    setRolePoints([]);
     setModalOpen(true);
+    const roles = await api.staffRoles.list();
+    setRolePoints(
+      roles
+        .filter((r) => Number(r.is_proxy_owner) !== 1)
+        .map((r) => ({ role_id: r.id, role_name: r.name, points: 0 }))
+    );
   };
 
-  const openEdit = (s: Service) => {
+  const openEdit = async (s: Service) => {
     setEditing(s);
     setForm({
       name: s.name,
@@ -59,27 +116,46 @@ export function ServicesPage() {
       duration_minutes: s.duration_minutes,
       price: s.price,
       icon: s.icon,
+      shop_percent: Number(s.shop_percent) || 0,
     });
+    const pts = await api.serviceRolePoints.get(s.id);
+    setRolePoints(pts);
     setModalOpen(true);
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || form.price <= 0) {
+    if (!form.name.trim() || !Number.isFinite(form.price) || form.price <= 0) {
       alert(S.invalidForm);
       return;
     }
     const payload = {
-      ...form,
+      name: form.name.trim(),
+      category: form.category || "Dịch vụ cắt tóc",
       duration_minutes: form.duration_minutes,
+      price: form.price,
+      icon: form.icon,
+      shop_percent: Math.max(0, Math.min(100, Number(form.shop_percent) || 0)),
     };
-    if (editing) {
-      await api.services.update(editing.id, payload);
-    } else {
-      await api.services.create(payload);
+    try {
+      let serviceId = editing?.id;
+      if (editing) {
+        await api.services.update(editing.id, payload);
+      } else {
+        const created = await api.services.create(payload);
+        serviceId = created.id;
+      }
+      if (serviceId && rolePoints.length > 0) {
+        await api.serviceRolePoints.save(
+          serviceId,
+          rolePoints.map((p) => ({ role_id: p.role_id, points: p.points }))
+        );
+      }
+      setModalOpen(false);
+      await load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : labels.errors.requestFailed);
     }
-    setModalOpen(false);
-    await load();
   };
 
   const handleDelete = async (s: Service) => {
@@ -299,13 +375,119 @@ export function ServicesPage() {
                   value={form.category}
                   onChange={(e) => setForm({ ...form, category: e.target.value })}
                 >
-                  {CATEGORIES.map((c) => (
+                  {categoryOptions.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
                   ))}
                 </select>
+                <span className="flex gap-2 pt-1">
+                  <input
+                    type="text"
+                    placeholder={S.newCategoryPlaceholder}
+                    className="flex-1 px-4 py-2 bg-surface-container-low border border-outline-variant rounded outline-none focus:ring-1 focus:ring-primary"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addCategory();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void addCategory()}
+                    className="shrink-0 px-4 py-2 border border-primary text-primary font-label-md rounded hover:bg-surface-container-low"
+                  >
+                    {S.addCategory}
+                  </button>
+                </span>
+                {categoryMeta.length > 0 && (
+                  <>
+                    <p className="text-label-sm text-on-surface-variant pt-2">{S.categoryListHint}</p>
+                    <ul className="flex flex-wrap gap-2 pt-1">
+                      {categoryMeta.map(({ name, serviceCount }) => (
+                        <li
+                          key={name}
+                          className="flex items-center gap-1 pl-3 pr-1 py-1 border border-outline-variant rounded-full bg-surface-container-low text-label-sm"
+                        >
+                          <span>{name}</span>
+                          {serviceCount > 0 && (
+                            <span className="text-on-surface-variant text-[11px]">({serviceCount})</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => void removeCategory(name)}
+                            className="p-1 rounded hover:bg-error-container text-error"
+                            title={S.deleteCategory}
+                          >
+                            <Icon name="close" className="text-[16px]" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </label>
+              <section className="border border-outline-variant rounded-lg p-4 space-y-3">
+                {rolePoints.length > 0 && (
+                  <>
+                    <p className="font-label-md text-primary">{S.rolePointsTitle}</p>
+                    <p className="text-label-sm text-on-surface-variant">{S.rolePointsHint}</p>
+                    <table className="w-full text-label-sm">
+                      <thead>
+                        <tr className="text-outline">
+                          <th className="text-left py-1">{S.rolePointsColRole}</th>
+                          <th className="text-right py-1 w-24">{S.rolePointsColPoints}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rolePoints.map((row, idx) => (
+                          <tr key={row.role_id}>
+                            <td className="py-2">{row.role_name}</td>
+                            <td className="py-2 text-right">
+                              <input
+                                type="number"
+                                min={0}
+                                step={0.5}
+                                className="w-20 border border-outline-variant rounded px-2 py-1 text-right"
+                                value={row.points}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value);
+                                  setRolePoints((prev) =>
+                                    prev.map((p, i) => (i === idx ? { ...p, points: v } : p))
+                                  );
+                                }}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+                <label
+                  className={`block space-y-1 ${rolePoints.length > 0 ? "pt-1 border-t border-outline-variant" : ""}`}
+                >
+                  <span className="font-label-md text-primary">{S.shopPercent}</span>
+                  <p className="text-label-sm text-on-surface-variant">{S.shopPercentHint}</p>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    className="w-28 border border-outline-variant rounded px-3 py-2 text-right"
+                    value={form.shop_percent}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        shop_percent: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
+                      }))
+                    }
+                  />
+                </label>
+              </section>
               <footer className="pt-4 flex gap-4">
                 <button
                   type="button"

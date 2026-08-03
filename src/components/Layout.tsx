@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import { labels } from "../labels";
 import { Icon } from "./Icon";
 import { LOGO_URL } from "../utils";
@@ -11,7 +11,6 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
   }`;
 
 export function Layout() {
-  const navigate = useNavigate();
   const { app, nav } = labels;
 
   return (
@@ -37,17 +36,27 @@ export function Layout() {
             <Icon name="receipt_long" className="mr-3" />
             <span className="text-label-sm">{nav.orders}</span>
           </NavLink>
+          <NavLink to="/employees" className={navClass}>
+            <Icon name="groups" className="mr-3" />
+            <span className="text-label-sm">{nav.employees}</span>
+          </NavLink>
+          <NavLink to="/depreciations" className={navClass}>
+            <Icon name="request_quote" className="mr-3" />
+            <span className="text-label-sm">{nav.depreciations}</span>
+          </NavLink>
+          <NavLink to="/profit" className={navClass}>
+            <Icon name="trending_up" className="mr-3" />
+            <span className="text-label-sm">{nav.profit}</span>
+          </NavLink>
+          <NavLink to="/maintenance" className={navClass}>
+            <Icon name="delete_sweep" className="mr-3" />
+            <span className="text-label-sm">{nav.maintenance}</span>
+          </NavLink>
+          <NavLink to="/trash" className={navClass}>
+            <Icon name="delete" className="mr-3" />
+            <span className="text-label-sm">{nav.trash}</span>
+          </NavLink>
         </nav>
-        <div className="px-6 mt-auto space-y-4">
-          <button
-            type="button"
-            onClick={() => navigate("/orders")}
-            className="w-full bg-primary text-on-primary text-label-md py-3 px-4 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 active:scale-95"
-          >
-            <Icon name="add" />
-            {nav.newBooking}
-          </button>
-        </div>
       </aside>
       <main className="flex-1 flex flex-col min-w-0 min-h-screen pb-16 md:pb-0">
         <Outlet />
@@ -80,6 +89,51 @@ export function Layout() {
         >
           <Icon name="receipt_long" />
           <span className="text-[10px] font-bold uppercase mt-1">{nav.orders}</span>
+        </NavLink>
+        <NavLink
+          to="/employees"
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center ${isActive ? "text-primary" : "text-on-surface-variant"}`
+          }
+        >
+          <Icon name="groups" />
+          <span className="text-[10px] font-bold uppercase mt-1">{nav.employees}</span>
+        </NavLink>
+        <NavLink
+          to="/depreciations"
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center ${isActive ? "text-primary" : "text-on-surface-variant"}`
+          }
+        >
+          <Icon name="request_quote" />
+          <span className="text-[10px] font-bold uppercase mt-1">{nav.depreciations}</span>
+        </NavLink>
+        <NavLink
+          to="/profit"
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center ${isActive ? "text-primary" : "text-on-surface-variant"}`
+          }
+        >
+          <Icon name="trending_up" />
+          <span className="text-[10px] font-bold uppercase mt-1">{nav.profit}</span>
+        </NavLink>
+        <NavLink
+          to="/maintenance"
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center ${isActive ? "text-primary" : "text-on-surface-variant"}`
+          }
+        >
+          <Icon name="delete_sweep" />
+          <span className="text-[10px] font-bold uppercase mt-1">{nav.maintenance}</span>
+        </NavLink>
+        <NavLink
+          to="/trash"
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center ${isActive ? "text-primary" : "text-on-surface-variant"}`
+          }
+        >
+          <Icon name="delete" />
+          <span className="text-[10px] font-bold uppercase mt-1">{nav.trash}</span>
         </NavLink>
       </nav>
     </div>

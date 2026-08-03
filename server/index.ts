@@ -23,10 +23,26 @@ import {
   buildItemsFromInput,
   computeItemsTotal,
   formatItemsSummary,
+  getOrderItems,
+  orderRevenueAmount,
   serializeOrder,
+  sumOrderRevenue,
   topServiceFromStats,
   type OrderItemInput,
 } from "./orderHelpers.js";
+import {
+  lineItemsToValidationInput,
+  validateLineItemsHaveStaff,
+  validateOrderItemsForSubmit,
+} from "./cartValidation.js";
+import { registerTrashRoutes } from "./trashApi.js";
+import { registerDataMaintenanceRoutes } from "./dataMaintenanceApi.js";
+import { bindAssignmentsToEmployees, processLineItemsForOrder, registerPayrollRoutes } from "./payrollApi.js";
+import { registerDepreciationRoutes } from "./depreciationApi.js";
+import { registerProfitRoutes, recomputeProfitDay } from "./profitApi.js";
+import { registerServiceCategoryRoutes } from "./serviceCategoriesApi.js";
+import type { EmployeeRow } from "./database.js";
+import { primaryBarberLabel } from "./payrollHelpers.js";
 
 function resolveAppRoot() {
   if (process.env.BLAO_APP_ROOT) return process.env.BLAO_APP_ROOT;
@@ -40,6 +56,13 @@ const PORT = Number(process.env.PORT) || 3847;
 
 app.use(cors());
 app.use(express.json());
+
+registerPayrollRoutes(app);
+registerDataMaintenanceRoutes(app);
+registerDepreciationRoutes(app);
+registerTrashRoutes(app);
+registerProfitRoutes(app);
+registerServiceCategoryRoutes(app);
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, name: "BLaoBarber" });
@@ -99,22 +122,24 @@ app.get("/api/services/stats", (_req, res) => {
 });
 
 app.post("/api/services", (req, res) => {
-  const { name, category, duration_minutes, price, icon } = req.body;
+  const { name, category, duration_minutes, price, icon, shop_percent } = req.body;
   if (!name || price == null) {
     res.status(400).json({ error: "Tên và giá là bắt buộc" });
     return;
   }
+  const percent = Math.max(0, Math.min(100, Number(shop_percent) || 0));
   const result = db
     .prepare(
-      `INSERT INTO services (name, category, duration_minutes, price, icon)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO services (name, category, duration_minutes, price, icon, shop_percent)
+       VALUES (?, ?, ?, ?, ?, ?)`
     )
     .run(
       name,
       category ?? "Dịch vụ cắt tóc",
       duration_minutes == null || duration_minutes === "" ? null : Number(duration_minutes),
       price,
-      icon ?? "content_cut"
+      icon ?? "content_cut",
+      percent
     );
 
   const row = db.prepare("SELECT * FROM services WHERE id = ?").get(result.lastInsertRowid);
@@ -128,9 +153,13 @@ app.put("/api/services/:id", (req, res) => {
     res.status(404).json({ error: "Không tìm thấy dịch vụ" });
     return;
   }
-  const { name, category, duration_minutes, price, icon } = req.body;
+  const { name, category, duration_minutes, price, icon, shop_percent } = req.body;
+  const nextPercent =
+    shop_percent !== undefined
+      ? Math.max(0, Math.min(100, Number(shop_percent) || 0))
+      : Number((existing as ServiceRow).shop_percent) || 0;
   db.prepare(
-    `UPDATE services SET name = ?, category = ?, duration_minutes = ?, price = ?, icon = ?
+    `UPDATE services SET name = ?, category = ?, duration_minutes = ?, price = ?, icon = ?, shop_percent = ?
      WHERE id = ?`
   ).run(
     name ?? (existing as ServiceRow).name,
@@ -142,6 +171,7 @@ app.put("/api/services/:id", (req, res) => {
       : (existing as ServiceRow).duration_minutes,
     price ?? (existing as ServiceRow).price,
     icon ?? (existing as ServiceRow).icon,
+    nextPercent,
     id
   );
   res.json(db.prepare("SELECT * FROM services WHERE id = ?").get(id));
@@ -149,12 +179,12 @@ app.put("/api/services/:id", (req, res) => {
 
 app.delete("/api/services/:id", (req, res) => {
   const id = Number(req.params.id);
-  const used = db.prepare("SELECT COUNT(*) as c FROM orders WHERE service_id = ?").get(id) as { c: number };
-  if (used.c > 0) {
-    db.prepare("UPDATE services SET is_active = 0 WHERE id = ?").run(id);
-  } else {
-    db.prepare("DELETE FROM services WHERE id = ?").run(id);
+  const row = db.prepare("SELECT * FROM services WHERE id = ?").get(id) as ServiceRow | undefined;
+  if (!row) {
+    res.status(404).json({ error: "Không tìm thấy dịch vụ" });
+    return;
   }
+  db.prepare("UPDATE services SET is_active = 0 WHERE id = ?").run(id);
   res.json({ ok: true });
 });
 
@@ -163,6 +193,7 @@ app.get("/api/orders", (req, res) => {
   const status = req.query.status as OrderStatus | undefined;
   const search = String(req.query.search ?? "").trim().toLowerCase();
   const todayOnly = req.query.today === "1";
+  const completedDate = req.query.date ? parseDateParam(req.query.date) : null;
 
   let sql = "SELECT * FROM orders WHERE 1=1";
   const params: unknown[] = [];
@@ -174,7 +205,11 @@ app.get("/api/orders", (req, res) => {
   if (todayOnly) {
     sql += ` AND (date(created_at) = ${todayDateSql()} OR date(completed_at) = ${todayDateSql()})`;
   }
-  sql += " ORDER BY created_at DESC";
+  if (completedDate) {
+    sql += " AND date(completed_at) = ?";
+    params.push(completedDate);
+  }
+  sql += " ORDER BY COALESCE(completed_at, created_at) DESC";
 
   let rows = db.prepare(sql).all(...params) as OrderRow[];
 
@@ -191,11 +226,21 @@ app.get("/api/orders", (req, res) => {
 });
 
 app.post("/api/orders", (req, res) => {
-  const { customer_name, barber, service_id, service_name, amount, status, note, items } = req.body;
+  const { customer_name, barber, service_id, service_name, amount, status, note, items, discount_percent } =
+    req.body;
 
   const servicesById = new Map(
-    (db.prepare("SELECT * FROM services WHERE is_active = 1").all() as ServiceRow[]).map((s) => [s.id, s])
+    (db.prepare("SELECT * FROM services").all() as ServiceRow[]).map((s) => [s.id, s])
   );
+
+  if (Array.isArray(items)) {
+    const serviceNames = new Map([...servicesById.entries()].map(([id, s]) => [id, s.name]));
+    const submitErr = validateOrderItemsForSubmit(items as OrderItemInput[], serviceNames);
+    if (submitErr) {
+      res.status(400).json({ error: submitErr });
+      return;
+    }
+  }
 
   let lineItems = Array.isArray(items)
     ? buildItemsFromInput(items as OrderItemInput[], servicesById)
@@ -207,10 +252,12 @@ app.post("/api/orders", (req, res) => {
 
   let finalName = service_name;
   let finalAmount = amount;
+  const rawDiscount = Number(discount_percent ?? 0);
+  const discountPercent = Number.isFinite(rawDiscount) ? Math.max(0, Math.min(100, rawDiscount)) : 0;
 
   if (lineItems) {
     finalName = formatItemsSummary(lineItems);
-    finalAmount = computeItemsTotal(lineItems);
+    finalAmount = Math.round(computeItemsTotal(lineItems) * (1 - discountPercent / 100));
   } else if (service_id) {
     const svc = servicesById.get(Number(service_id));
     if (!svc) {
@@ -226,21 +273,44 @@ app.post("/api/orders", (req, res) => {
     return;
   }
 
-  const primaryServiceId = lineItems?.[0]?.service_id ?? service_id ?? null;
-  const itemsJson = lineItems ? JSON.stringify(lineItems) : null;
-
   const orderStatus: OrderStatus = status ?? "in_progress";
+  let finalLineItems = lineItems;
+  if (finalLineItems) {
+    const staffErr = validateLineItemsHaveStaff(finalLineItems);
+    if (staffErr) {
+      res.status(400).json({ error: staffErr });
+      return;
+    }
+    const employeesById = new Map(
+      (db.prepare("SELECT * FROM employees WHERE is_active = 1").all() as EmployeeRow[]).map((e) => [
+        e.id,
+        e,
+      ])
+    );
+    finalLineItems = bindAssignmentsToEmployees(finalLineItems, employeesById);
+    finalLineItems = processLineItemsForOrder(finalLineItems, orderStatus);
+    finalName = formatItemsSummary(finalLineItems);
+    finalAmount = Math.round(computeItemsTotal(finalLineItems) * (1 - discountPercent / 100));
+  }
+  const primaryServiceId = finalLineItems?.[0]?.service_id ?? service_id ?? null;
+  const itemsJson = finalLineItems ? JSON.stringify(finalLineItems) : null;
+  const barberLabel =
+    finalLineItems && finalLineItems.length > 0
+      ? primaryBarberLabel(finalLineItems)
+      : (barber ?? "—");
+
   const result = db
     .prepare(
-      `INSERT INTO orders (customer_name, barber, service_id, service_name, amount, status, note, items_json, completed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO orders (customer_name, barber, service_id, service_name, amount, discount_percent, status, note, items_json, completed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       customer_name ?? "Khách vãng lai",
-      barber ?? "Bất kỳ",
+      barberLabel,
       primaryServiceId,
       finalName,
       finalAmount,
+      discountPercent,
       orderStatus,
       note ?? null,
       itemsJson,
@@ -259,7 +329,7 @@ app.patch("/api/orders/:id", (req, res) => {
     return;
   }
 
-  const { status, customer_name, barber, amount, note, items } = req.body;
+  const { status, customer_name, barber, amount, note, items, discount_percent } = req.body;
   const newStatus: OrderStatus = status ?? row.status;
   const completedAt =
     newStatus === "completed" && row.status !== "completed"
@@ -272,32 +342,76 @@ app.patch("/api/orders/:id", (req, res) => {
   let serviceName = row.service_name;
   let orderAmount = amount ?? row.amount;
   let itemsJson: string | null = row.items_json;
+  let barberLabel = barber ?? row.barber;
+  const rawDiscount = Number(discount_percent ?? (row as any).discount_percent ?? 0);
+  const discountPercent = Number.isFinite(rawDiscount) ? Math.max(0, Math.min(100, rawDiscount)) : 0;
+  let lineItems = null as ReturnType<typeof buildItemsFromInput>;
 
   if (Array.isArray(items)) {
     const servicesById = new Map(
       (db.prepare("SELECT * FROM services").all() as ServiceRow[]).map((s) => [s.id, s])
     );
-    const lineItems = buildItemsFromInput(items as OrderItemInput[], servicesById);
+    const serviceNames = new Map([...servicesById.entries()].map(([id, s]) => [id, s.name]));
+    const submitErr = validateOrderItemsForSubmit(items as OrderItemInput[], serviceNames);
+    if (submitErr) {
+      res.status(400).json({ error: submitErr });
+      return;
+    }
+    lineItems = buildItemsFromInput(items as OrderItemInput[], servicesById);
     if (!lineItems || lineItems.length === 0) {
       res.status(400).json({ error: "Chọn ít nhất một dịch vụ" });
       return;
     }
+  } else if (newStatus === "completed" && row.status !== "completed") {
+    lineItems = getOrderItems(row);
+  }
+
+  if (lineItems) {
+    if (newStatus === "completed") {
+      const staffErr = validateLineItemsHaveStaff(lineItems);
+      if (staffErr) {
+        res.status(400).json({ error: staffErr });
+        return;
+      }
+      const servicesById = new Map(
+        (db.prepare("SELECT * FROM services").all() as ServiceRow[]).map((s) => [s.id, s])
+      );
+      const serviceNames = new Map([...servicesById.entries()].map(([id, s]) => [id, s.name]));
+      const dupErr = validateOrderItemsForSubmit(
+        lineItemsToValidationInput(lineItems),
+        serviceNames
+      );
+      if (dupErr) {
+        res.status(400).json({ error: dupErr });
+        return;
+      }
+    }
+    const employeesById = new Map(
+      (db.prepare("SELECT * FROM employees WHERE is_active = 1").all() as EmployeeRow[]).map((e) => [
+        e.id,
+        e,
+      ])
+    );
+    lineItems = bindAssignmentsToEmployees(lineItems, employeesById);
+    lineItems = processLineItemsForOrder(lineItems, newStatus);
     serviceId = lineItems[0].service_id;
     serviceName = formatItemsSummary(lineItems);
-    orderAmount = computeItemsTotal(lineItems);
+    orderAmount = Math.round(computeItemsTotal(lineItems) * (1 - discountPercent / 100));
     itemsJson = JSON.stringify(lineItems);
+    barberLabel = primaryBarberLabel(lineItems);
   }
 
   db.prepare(
-    `UPDATE orders SET status = ?, customer_name = ?, barber = ?, service_id = ?, service_name = ?, amount = ?, note = ?, items_json = ?, completed_at = ?
+    `UPDATE orders SET status = ?, customer_name = ?, barber = ?, service_id = ?, service_name = ?, amount = ?, discount_percent = ?, note = ?, items_json = ?, completed_at = ?
      WHERE id = ?`
   ).run(
     newStatus,
     customer_name ?? row.customer_name,
-    barber ?? row.barber,
+    barberLabel,
     serviceId,
     serviceName,
     orderAmount,
+    discountPercent,
     note !== undefined ? note : row.note,
     itemsJson,
     completedAt,
@@ -310,8 +424,27 @@ app.patch("/api/orders/:id", (req, res) => {
 
 app.delete("/api/orders/:id", (req, res) => {
   const id = Number(req.params.id);
+  const row = db.prepare("SELECT * FROM orders WHERE id = ?").get(id) as OrderRow | undefined;
+  if (!row) {
+    res.status(404).json({ error: "Không tìm thấy đơn" });
+    return;
+  }
+  if (row.status === "cancelled") {
+    res.status(400).json({ error: "Đơn đã bị huỷ" });
+    return;
+  }
+
+  const wasCompleted = row.status === "completed";
+  const removedRevenue = wasCompleted ? orderRevenueAmount(row) : 0;
+  const completedDay = row.completed_at ? String(row.completed_at).slice(0, 10) : null;
+
   db.prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?").run(id);
-  res.json({ ok: true });
+
+  if (wasCompleted && completedDay) {
+    recomputeProfitDay(completedDay);
+  }
+
+  res.json({ ok: true, removedRevenue });
 });
 
 app.delete("/api/orders/held/clear", (_req, res) => {
@@ -343,15 +476,6 @@ app.get("/api/dashboard", (req, res) => {
         .get(month) as { c: number }
     ).c;
 
-    const revenue = (
-      db
-        .prepare(
-          `SELECT COALESCE(SUM(amount), 0) as s FROM orders
-           WHERE status = 'completed' AND strftime('%Y-%m', completed_at) = ?`
-        )
-        .get(month) as { s: number }
-    ).s;
-
     const customersPrev = (
       db
         .prepare(
@@ -361,21 +485,22 @@ app.get("/api/dashboard", (req, res) => {
         .get(prev) as { c: number }
     ).c;
 
-    const revenuePrev = (
-      db
-        .prepare(
-          `SELECT COALESCE(SUM(amount), 0) as s FROM orders
-           WHERE status = 'completed' AND strftime('%Y-%m', completed_at) = ?`
-        )
-        .get(prev) as { s: number }
-    ).s;
-
     const completedRows = db
       .prepare(
         `SELECT * FROM orders
          WHERE status = 'completed' AND strftime('%Y-%m', completed_at) = ?`
       )
       .all(month) as OrderRow[];
+
+    const completedRowsPrev = db
+      .prepare(
+        `SELECT * FROM orders
+         WHERE status = 'completed' AND strftime('%Y-%m', completed_at) = ?`
+      )
+      .all(prev) as OrderRow[];
+
+    const revenue = sumOrderRevenue(completedRows);
+    const revenuePrev = sumOrderRevenue(completedRowsPrev);
 
     const serviceStats = aggregateServiceStats(completedRows);
     const topService = topServiceFromStats(serviceStats);
@@ -416,15 +541,6 @@ app.get("/api/dashboard", (req, res) => {
         .get(from, to) as { c: number }
     ).c;
 
-    const revenue = (
-      db
-        .prepare(
-          `SELECT COALESCE(SUM(amount), 0) as s FROM orders
-           WHERE status = 'completed' AND date(completed_at) >= ? AND date(completed_at) <= ?`
-        )
-        .get(from, to) as { s: number }
-    ).s;
-
     const customersPrev = (
       db
         .prepare(
@@ -434,21 +550,22 @@ app.get("/api/dashboard", (req, res) => {
         .get(prev.from, prev.to) as { c: number }
     ).c;
 
-    const revenuePrev = (
-      db
-        .prepare(
-          `SELECT COALESCE(SUM(amount), 0) as s FROM orders
-           WHERE status = 'completed' AND date(completed_at) >= ? AND date(completed_at) <= ?`
-        )
-        .get(prev.from, prev.to) as { s: number }
-    ).s;
-
     const completedRows = db
       .prepare(
         `SELECT * FROM orders
          WHERE status = 'completed' AND date(completed_at) >= ? AND date(completed_at) <= ?`
       )
       .all(from, to) as OrderRow[];
+
+    const completedRowsPrev = db
+      .prepare(
+        `SELECT * FROM orders
+         WHERE status = 'completed' AND date(completed_at) >= ? AND date(completed_at) <= ?`
+      )
+      .all(prev.from, prev.to) as OrderRow[];
+
+    const revenue = sumOrderRevenue(completedRows);
+    const revenuePrev = sumOrderRevenue(completedRowsPrev);
 
     const serviceStats = aggregateServiceStats(completedRows);
     const topService = topServiceFromStats(serviceStats);
@@ -487,15 +604,6 @@ app.get("/api/dashboard", (req, res) => {
       .get(date) as { c: number }
   ).c;
 
-  const revenue = (
-    db
-      .prepare(
-        `SELECT COALESCE(SUM(amount), 0) as s FROM orders
-         WHERE status = 'completed' AND date(completed_at) = ?`
-      )
-      .get(date) as { s: number }
-  ).s;
-
   const customersPrev = (
     db
       .prepare(
@@ -505,18 +613,16 @@ app.get("/api/dashboard", (req, res) => {
       .get(prev) as { c: number }
   ).c;
 
-  const revenuePrev = (
-    db
-      .prepare(
-        `SELECT COALESCE(SUM(amount), 0) as s FROM orders
-         WHERE status = 'completed' AND date(completed_at) = ?`
-      )
-      .get(prev) as { s: number }
-  ).s;
-
   const completedRows = db
     .prepare(`SELECT * FROM orders WHERE status = 'completed' AND date(completed_at) = ?`)
     .all(date) as OrderRow[];
+
+  const completedRowsPrev = db
+    .prepare(`SELECT * FROM orders WHERE status = 'completed' AND date(completed_at) = ?`)
+    .all(prev) as OrderRow[];
+
+  const revenue = sumOrderRevenue(completedRows);
+  const revenuePrev = sumOrderRevenue(completedRowsPrev);
 
   const serviceStats = aggregateServiceStats(completedRows);
   const topService = topServiceFromStats(serviceStats);

@@ -1,3 +1,5 @@
+import type { Service } from "./types";
+
 export function localDateString(d = new Date()) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -72,6 +74,52 @@ export const PAGE_TITLE_CLASS = "font-headline-md text-headline-md font-semibold
 
 export const BARBERS = ["Bất kỳ", "Chủ tiệm 1", "Chủ tiệm 2"];
 export const CATEGORIES = ["Dịch vụ cắt tóc", "Thư giãn", "Dịch vụ lẻ"] as const;
+
+/** Gop loai mac dinh + loai dang co trong danh muc dich vu */
+export function collectServiceCategories(services: { category: string }[]) {
+  const set = new Set<string>([...CATEGORIES]);
+  for (const s of services) {
+    const c = s.category?.trim();
+    if (c) set.add(c);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, "vi"));
+}
+
+export function groupServicesByCategory(services: Service[]) {
+  const categories = collectServiceCategories(services);
+  const map = new Map<string, Service[]>();
+  for (const cat of categories) map.set(cat, []);
+  for (const s of services) {
+    const list = map.get(s.category) ?? [];
+    list.push(s);
+    map.set(s.category, list);
+  }
+  for (const [cat, list] of map) {
+    list.sort((a, b) => a.name.localeCompare(b.name, "vi"));
+    map.set(cat, list);
+  }
+  return { categories, byCategory: map };
+}
+
+/** Chi hien cot loai co it nhat mot dich vu — dung tab Don hang */
+export function groupServicesByCategoryForOrders(services: Service[]) {
+  const map = new Map<string, Service[]>();
+  for (const s of services) {
+    const cat = s.category?.trim();
+    if (!cat) continue;
+    const list = map.get(cat) ?? [];
+    list.push(s);
+    map.set(cat, list);
+  }
+  for (const [cat, list] of map) {
+    list.sort((a, b) => a.name.localeCompare(b.name, "vi"));
+    map.set(cat, list);
+  }
+  const categories = [...map.keys()]
+    .filter((cat) => (map.get(cat)?.length ?? 0) > 0)
+    .sort((a, b) => a.localeCompare(b, "vi"));
+  return { categories, byCategory: map };
+}
 
 export const LOGO_URL =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuDtQDa3KneHPRwimLEFRwaswpMYoqKVrEZXr7iJt8fVqDfh-o9ye8WtjkI1uMRx6Y6Lv7HMmfcdP8-SfQxFQSfRqfftRq3pAlpn0dqoLLpYKZyD2aYTR834jskFzZ-f_eEpi66YHEioWxduc7m14qmt_2_PO_c9TV76qe-4RdG11ICa9P794nF_A0HP7oHabrCwmCPBr-Pt_pswt6QdQIgTdu_6LAwELq2I5c3zB0LIOI5wCqbs_X6z1Al9tAJuafeftehpajRcZ9k-";
