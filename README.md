@@ -4,7 +4,7 @@ App quản lý tiệm cắt tóc (Dashboard, Services, Orders) chạy local vớ
 
 ## Yêu cầu
 
-- **Node.js 22.5+** (bạn đang dùng v24 là được) — dùng SQLite tích hợp sẵn, **không cần** Python / Visual Studio Build Tools
+- **Node.js 22.5+** — dùng SQLite tích hợp sẵn, **không cần** Python / Visual Studio Build Tools
 
 ## Chạy development
 
